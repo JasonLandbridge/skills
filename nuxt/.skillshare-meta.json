@@ -1,0 +1,31 @@
+{
+  "source": "https://github.com/antfu/skills/skills/nuxt",
+  "type": "github-subdir",
+  "installed_at": "2026-02-27T14:58:30.66197771+01:00",
+  "repo_url": "https://github.com/antfu/skills.git",
+  "subdir": "skills/nuxt",
+  "version": "3fb90f0",
+  "tree_hash": "a83cf8de14f79487619c7938847a0070726225da",
+  "file_hashes": {
+    "GENERATION.md": "sha256:598426566a843d6844eca403f0322418e640ad90c309fe64d984618a13582b7b",
+    "SKILL.md": "sha256:1022ec1de47ea1ad86a2a95c296527a17abe71affe88092f8a4949fd6897da13",
+    "references/advanced-hooks.md": "sha256:45f6c01c439e1d2fb55101e4226ca1edbae7f16bc8d8d95d2a80ffd0dfd59b50",
+    "references/advanced-layers.md": "sha256:c9c1526503a07da55c8798307b357851ec967cafde2bab5485d914492af24ad0",
+    "references/advanced-module-authoring.md": "sha256:791fe08470199a9188c18c73e30cefb63526b4783b9c4b93bfde975b765b8d3a",
+    "references/best-practices-data-fetching.md": "sha256:ff29e396a672574f52efd61ca948ed0639eb66d9647ebc2645bb51a00359bffc",
+    "references/best-practices-ssr.md": "sha256:e26db2f9629bdee842163b78e9f79dd50ac0bbdc963f7b74ce0e0e48d0d26432",
+    "references/core-cli.md": "sha256:322660789800f525c076c847746eea7d62c9cfba14dcc17e2ea955e52ebed739",
+    "references/core-config.md": "sha256:c0f08cf8b8d65253406d26a94e2c5e36b466fe81ac5350d104f990ab601d4ece",
+    "references/core-data-fetching.md": "sha256:6c3bf6faa8d82641bb381a28e1e85505f53f989380cc724a9f3b0ba749647c93",
+    "references/core-deployment.md": "sha256:d5ed511b454564eb63ab2d5e2f9c07bc5e7d7a21548bb9d9a773e0729f93df2f",
+    "references/core-directory-structure.md": "sha256:8483343d5291ce55111ba074c671549c323f63c85a806a4bf9002d576ab53a2b",
+    "references/core-modules.md": "sha256:73530538f8eb54e4cab4c269fc01b391812370a6ce0557fc46b4fe9ee4ca92c1",
+    "references/core-routing.md": "sha256:d71ef0970a7f6a8b42d36ce044bfdbd86116741b0880eee0029941bca0273737",
+    "references/features-components-autoimport.md": "sha256:6842d81cc97737700542dd8b3833b029f58075fdb8d533845094541b8c817794",
+    "references/features-components.md": "sha256:b2b8323313fba0a1e555632c76f1dcca555f06052bc966089dd45e0a36aedba3",
+    "references/features-composables.md": "sha256:3dc87e31e6bc7ee6b25874a215263607894543928f071b608eb7c9fcd6298d87",
+    "references/features-server.md": "sha256:734143f655a8eb24c220933ce932357052bba9c96b02a13845dd8e43322b119a",
+    "references/features-state.md": "sha256:cd7f0c478cbc00b6a30bad893045f17cfea2b571be7164f941cf102fd9b10559",
+    "references/rendering-modes.md": "sha256:cd78ae74fcf223711923838e8e55537602892d0028ee475d88d580e64243490c"
+  }
+}

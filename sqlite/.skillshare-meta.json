@@ -1,0 +1,14 @@
+{
+  "source": "https://github.com/martinholovsky/claude-skills-generator/tree/main/skills/sqlite",
+  "type": "github-subdir",
+  "installed_at": "2026-02-27T13:46:52.037708566+01:00",
+  "repo_url": "https://github.com/martinholovsky/claude-skills-generator.git",
+  "subdir": "skills/sqlite",
+  "version": "1086ef2",
+  "tree_hash": "bc32689e807a56c6d24ce341bbf29b18350db35e",
+  "file_hashes": {
+    "SKILL.md": "sha256:1ca5d059e0cc3302159c9091963710f8d8304ede82889d68387c05eb00df8660",
+    "references/advanced-patterns.md": "sha256:448061b0d44461f96dc9e495b67b744070bdf1f0084bb83d72e6a7e5ad1adcb7",
+    "references/security-examples.md": "sha256:e3cdc37dd3dc8343d28e26a8ed627fad3bd306094ab4e8484314c2dfbd63b268"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "source": "https://github.com/vuejs-ai/skills/skills/vue-jsx-best-practices",
+  "type": "github-subdir",
+  "installed_at": "2026-02-27T13:46:41.340725201+01:00",
+  "repo_url": "https://github.com/vuejs-ai/skills.git",
+  "subdir": "skills/vue-jsx-best-practices",
+  "version": "f3dd1bf",
+  "tree_hash": "b6bbe69dd1507c8770ae7e4cdab976cba929ae48",
+  "file_hashes": {
+    "SKILL.md": "sha256:bd3487c0d6217ecdd0604fee84454f51d4b8db0c333921378eccd495be8a0fcc",
+    "reference/render-function-jsx-vue-vs-react.md": "sha256:da8c635b448b23360bf1c53eea02b004bb755a712a0325c8851f9c33a072c834"
+  }
+}
