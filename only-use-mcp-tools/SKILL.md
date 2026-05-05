@@ -43,6 +43,9 @@ This includes (but is not limited to):
 8. **If discovery results are sparse, retry with narrower and more specific queries.**
 9. **Do not bypass proxy due to one failed/sparse lookup.**
 10. **Fallback to non-MCP/native tools is exception-only and must be explicitly justified in user-visible text.**
+11. **Never claim MCP is unavailable while any relevant healthy MCP server exists.**
+12. **Before proposing fallback, run a self-check against known likely tool names from usage stats and retry discovery for those exact names.**
+13. **If a user challenges a fallback claim, treat it as a hard stop and immediately re-run discovery instead of defending fallback.**
 
 ---
 
@@ -113,6 +116,18 @@ If discovery remains weak, retry with smaller explicit queries such as:
 
 Do not treat one broad failed query as evidence that tooling is unavailable.
 
+### Discovery Sanity Check (Mandatory Before Fallback Claim)
+
+Before you say MCP tooling is unavailable, you MUST run this sanity-check sequence:
+
+1. Re-run discovery with `include_stats=true` to inspect historically used tools in the current session environment.
+2. If usage stats show likely matching tools (for example `rider-official:get_file_text_by_path`, `rider-official:replace_text_in_file`, `rider-agent-bridge:read_file`, `webstorm-agentbridge:read_file`), treat MCP as available and continue discovery/routing.
+3. Re-query `mcpproxy_retrieve_tools` with explicit server+action wording and exact likely tool-name queries.
+4. If still missing, verify server health and quarantine status again before any fallback statement.
+5. Only after steps 1-4 fail may fallback be proposed.
+
+If any step indicates likely availability, fallback is prohibited.
+
 ---
 
 ## Security & Risk Policy
@@ -177,6 +192,18 @@ If any rule in this skill is violated:
 
 Do not continue with mixed compliant/non-compliant execution.
 
+### User-Challenge Override (Mandatory)
+
+If the user says your fallback claim is wrong (examples: "you are wrong", "it is available", "don’t fallback"):
+
+1. Immediately suspend fallback discussion.
+2. Acknowledge possibility of error without argument.
+3. Re-run discovery with narrower explicit queries, `include_stats=true`, and server-health/quarantine checks.
+4. Attempt execution with discovered MCP tools before any further fallback suggestion.
+5. Report what MCP path worked (or exact evidence of continued failure).
+
+Never argue for fallback until this override sequence is completed.
+
 ---
 
 ## Common Violations (Do Not Do)
@@ -189,6 +216,8 @@ Do not continue with mixed compliant/non-compliant execution.
 - Treating sparse results as definitive failure
 - Performing destructive actions without explicit user request
 - Falling back without stating why proxy path failed
+- Claiming MCP is unavailable without running the Discovery Sanity Check
+- Defending fallback after a direct user challenge instead of triggering User-Challenge Override
 
 ---
 
@@ -201,4 +230,6 @@ Do not continue with mixed compliant/non-compliant execution.
 - [ ] Intent fields provided on all proxy calls
 - [ ] Truncation handled with `mcpproxy_read_cache` (if needed)
 - [ ] Fallback (if any) justified in user-visible text
+- [ ] Discovery Sanity Check completed before any fallback claim
+- [ ] If user challenged fallback, User-Challenge Override completed
 - [ ] Any policy violation recovered via Strict Mode
