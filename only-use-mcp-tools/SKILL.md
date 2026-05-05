@@ -55,6 +55,17 @@ Before meaningful execution:
 3. If security restrictions are suspected, inspect with `mcpproxy_quarantine_security`.
 4. Execute only through the wrapper specified by discovered `call_with`.
 
+### JetBrains-First Enforcement (Reaparr / IDE work)
+
+For repository code navigation, symbol lookup, project-wide search, and refactors:
+
+1. Prefer JetBrains MCP tools first (Rider for backend, WebStorm for frontend).
+2. If expected JetBrains tools are missing from discovery:
+   - check `mcpproxy_upstream_servers`
+   - check `mcpproxy_quarantine_security`
+   - retry discovery with narrower server+action phrasing
+3. Do not switch to native/local repo reads until these checks complete.
+
 ---
 
 ## Required Routing Protocol
@@ -85,7 +96,15 @@ For each intended action:
 
 ## Discovery Retry Policy (Strict)
 
-If discovery is weak, retry with smaller, explicit queries. Examples:
+Sparse discovery is not failure.
+
+Before any fallback, run at least **3** progressively narrower `mcpproxy_retrieve_tools` queries for the same capability:
+
+1. Broad capability query (e.g., `read file in project`)
+2. Server-scoped query (e.g., `rider-official read file by path`)
+3. Action-scoped query (e.g., `rider find symbol`, `webstorm search in files`)
+
+If discovery remains weak, retry with smaller explicit queries such as:
 
 - `github get file contents`
 - `jetbrains list files in project`
@@ -119,13 +138,25 @@ If `session_risk.level` is `high` or `lethal_trifecta=true`:
 
 You may use non-proxy/native alternatives only if all are true:
 
-1. Proxy discovery and retries were attempted.
-2. Relevant upstream availability/security state was checked.
-3. Proxy path is actually unavailable or insufficient for required output.
-4. You explicitly state:
+1. Proxy discovery and retries were attempted (including the mandatory 3-query retry budget).
+2. Relevant upstream availability/security state was checked via `mcpproxy_upstream_servers`.
+3. Quarantine status was checked with `mcpproxy_quarantine_security` when expected tools are missing.
+4. Proxy path is actually unavailable or insufficient for required output.
+5. You explicitly state:
    - why proxy could not satisfy the need,
    - what fallback is used,
    - why fallback is safe.
+
+## Fallback Approval Gate
+
+Before broad fallback operations, ask for explicit user approval unless the user already granted fallback permission in the current turn.
+
+When fallback is used, include:
+
+- failed discovery queries
+- upstream health result
+- quarantine check result (when applicable)
+- safety rationale for fallback
 
 No silent fallback is allowed.
 
