@@ -1,235 +1,274 @@
 ---
 name: only-use-mcp-tools
-description: ESSENTIAL, ALWAYS LOAD FIRST in every session. Enforce MCP-proxy-only execution for IDE, GitHub, browser, docs, APIs, automation, and any external capability. Use this skill whenever a task could involve tools, integrations, remote services, or MCP-backed actions—even if the user does not explicitly mention MCP. Require mcpproxy tool discovery, exact tool-name routing, correct call_with wrapper usage, and mandatory intent metadata on every proxied call.
+description: Use when MCP-backed tools, IDE servers, repository automation, or external integrations are available and local fallback must be blocked.
 ---
 
 # MCP Tools Mandatory (Global)
 
-## Non-Negotiable Purpose
+## Core Invariant
 
-This skill is **mandatory for every task** and must be loaded first.
-
-It enforces one invariant:
-
-> **If a capability can be accessed through MCP, it must be accessed through `mcpproxy`.**
-
-This includes (but is not limited to):
-
-- IDE and code intelligence
-- GitHub and remote repository operations
-- Browser automation
-- API calls
-- Documentation lookup
-- Service introspection
-- Runtime/debug tooling
-- Any third-party integration exposed through MCP
+If a capability is available through MCP, it MUST be executed through `mcpproxy`.
 
 ---
 
-## Hard Enforcement Rules
+## First 30 Seconds (Startup Checklist)
 
-1. **Always use `mcpproxy` first.**
-2. **Never guess tool names.**
-3. **Always run `mcpproxy_retrieve_tools` before any upstream MCP call.**
-4. **Use the exact discovered `name` value (`server:tool`) from retrieval output.**
-5. **Use the exact discovered `call_with` route as source of truth** (this overrides naming heuristics):
-   - `mcpproxy_call_tool_read`
-   - `mcpproxy_call_tool_write`
-   - `mcpproxy_call_tool_destructive`
-6. **Every proxy call must include**:
+1. Run `mcpproxy_retrieve_tools` for the immediate action.
+2. Select exact returned `server:tool`.
+3. Route with exact returned `call_with`.
+4. Include `intent_reason` and `intent_data_sensitivity` on every proxied call.
+5. If tools are missing/unclear, run health and quarantine checks before any further action.
+
+---
+
+## Operational Contract (Fail-Closed)
+
+1. You MUST use `mcpproxy` first.
+2. You MUST NOT guess tool names.
+3. You MUST run `mcpproxy_retrieve_tools` before upstream calls.
+4. You MUST use exact discovered `server:tool` names.
+5. You MUST route by discovered `call_with` only:
+   - `call_tool_read` → `mcpproxy_call_tool_read`
+   - `call_tool_write` → `mcpproxy_call_tool_write`
+   - `call_tool_destructive` → `mcpproxy_call_tool_destructive`
+6. Every proxy call MUST include:
    - `intent_reason`
-   - `intent_data_sensitivity` (`public` | `internal` | `private` | `unknown`)
-7. **If response is truncated, continue with `mcpproxy_read_cache`.**
-8. **If discovery results are sparse, retry with narrower and more specific queries.**
-9. **Do not bypass proxy due to one failed/sparse lookup.**
-10. **Fallback to non-MCP/native tools is exception-only and must be explicitly justified in user-visible text.**
-11. **Never claim MCP is unavailable while any relevant healthy MCP server exists.**
-12. **Before proposing fallback, run a self-check against known likely tool names from usage stats and retry discovery for those exact names.**
-13. **If a user challenges a fallback claim, treat it as a hard stop and immediately re-run discovery instead of defending fallback.**
+   - `intent_data_sensitivity` (`public|internal|private|unknown`)
+7. You MUST continue truncated responses via `mcpproxy_read_cache`.
+8. You MUST NOT use local/native fallback tools.
 
 ---
 
-## Mandatory Startup Sequence (Every Task)
+## Discovery Policy (Deterministic)
 
-Before meaningful execution:
+When capability is uncertain, you MUST run 3 narrowing discovery queries:
+1. Broad capability query
+2. Server-scoped query
+3. Action-scoped query
 
-1. Run `mcpproxy_retrieve_tools` for the immediate capability needed.
-2. If availability is uncertain, check `mcpproxy_upstream_servers`.
-3. If security restrictions are suspected, inspect with `mcpproxy_quarantine_security`.
-4. Execute only through the wrapper specified by discovered `call_with`.
+If still unclear, you MUST run one sanity pass with `include_stats=true` and retry with explicit likely names.
+You MUST NOT infer unavailability from one sparse query.
 
-### JetBrains-First Enforcement (Reaparr / IDE work)
+### Golden Query Pack (Copy/Paste)
 
-For repository code navigation, symbol lookup, project-wide search, and refactors:
-
-1. Prefer JetBrains MCP tools first (Rider for backend, WebStorm for frontend).
-2. If expected JetBrains tools are missing from discovery:
-   - check `mcpproxy_upstream_servers`
-   - check `mcpproxy_quarantine_security`
-   - retry discovery with narrower server+action phrasing
-3. Do not switch to native/local repo reads until these checks complete.
-
----
-
-## Required Routing Protocol
-
-For each intended action:
-
-1. **Discover**  
-   Call `mcpproxy_retrieve_tools` with a focused query.
-
-2. **Select**  
-   Choose one returned tool entry and copy its exact `server:tool` name.
-
-3. **Route**  
-   Invoke through the matching wrapper from `call_with`:
-   - Read-only → `mcpproxy_call_tool_read`
-   - State-modifying → `mcpproxy_call_tool_write`
-   - Irreversible/high-risk → `mcpproxy_call_tool_destructive`
-
-4. **Annotate intent**  
-   Set:
-   - `intent_reason`: concrete reason this call is needed now
-   - `intent_data_sensitivity`: narrowest honest classification
-
-5. **Handle truncation**  
-   If truncated, paginate with `mcpproxy_read_cache`.
+- `rider-official backend file read edit search`
+- `webstorm-official frontend file read edit search`
+- `rider-official vcs changes stage commit log`
+- `webstorm-official vcs changes stage commit log`
+- `rider-official get_file_text_by_path replace_text_in_file`
+- `webstorm-official get_file_text_by_path replace_text_in_file`
+- `rider-official search_in_files_by_text search_in_files_by_regex`
+- `webstorm-official search_in_files_by_text search_in_files_by_regex`
 
 ---
 
-## Discovery Retry Policy (Strict)
+## Health and Security Gate
 
-Sparse discovery is not failure.
+When discovery is missing/unclear, you MUST run:
+1. `mcpproxy_upstream_servers`
+2. `mcpproxy_quarantine_security`
 
-Before any fallback, run at least **3** progressively narrower `mcpproxy_retrieve_tools` queries for the same capability:
-
-1. Broad capability query (e.g., `read file in project`)
-2. Server-scoped query (e.g., `rider-official read file by path`)
-3. Action-scoped query (e.g., `rider find symbol`, `webstorm search in files`)
-
-If discovery remains weak, retry with smaller explicit queries such as:
-
-- `github get file contents`
-- `jetbrains list files in project`
-- `playwright click element by text`
-- `context7 resolve library id`
-
-Do not treat one broad failed query as evidence that tooling is unavailable.
-
-### Discovery Sanity Check (Mandatory Before Fallback Claim)
-
-Before you say MCP tooling is unavailable, you MUST run this sanity-check sequence:
-
-1. Re-run discovery with `include_stats=true` to inspect historically used tools in the current session environment.
-2. If usage stats show likely matching tools (for example `rider-official:get_file_text_by_path`, `rider-official:replace_text_in_file`, `rider-agent-bridge:read_file`, `webstorm-agentbridge:read_file`), treat MCP as available and continue discovery/routing.
-3. Re-query `mcpproxy_retrieve_tools` with explicit server+action wording and exact likely tool-name queries.
-4. If still missing, verify server health and quarantine status again before any fallback statement.
-5. Only after steps 1-4 fail may fallback be proposed.
-
-If any step indicates likely availability, fallback is prohibited.
+You MUST proceed only after these checks are evaluated.
 
 ---
 
-## Security & Risk Policy
+## IDE Routing Policy (Strict Split)
 
-1. **Default to read operations.**
-2. **Writes require explicit task need.**
-3. **Destructive actions require explicit user intent and clear risk acknowledgement.**
-4. Respect `session_risk` and tool annotations (`destructiveHint`, `openWorldHint`, `readOnlyHint`).
-5. If server/tool is quarantined, inspect via `mcpproxy_quarantine_security` before declaring it unusable.
+- **Backend C#/.NET work MUST default to `rider-official`.**
+- **Frontend TS/JS/Vue/CSS/HTML work MUST default to `webstorm-official`.**
 
-### High-Risk Session Gating
+`rider-official` and `webstorm-official` share similar tool layout for many read/edit/search actions. You MAY swap server prefixes for equivalent actions when needed, while keeping split defaults for consistency.
 
-If `session_risk.level` is `high` or `lethal_trifecta=true`:
+### projectPath Rule
 
-1. Prefer read-only discovery and inspection first.
-2. Minimize open-world and write operations unless necessary for user-requested outcome.
-3. Require explicit user confirmation before destructive operations.
-4. State why the selected operation is necessary and proportionate.
+When `projectPath` is known, you MUST pass it on Rider/WebStorm tool calls.
 
----
-
-## Fallback Policy (Exception Only)
-
-You may use non-proxy/native alternatives only if all are true:
-
-1. Proxy discovery and retries were attempted (including the mandatory 3-query retry budget).
-2. Relevant upstream availability/security state was checked via `mcpproxy_upstream_servers`.
-3. Quarantine status was checked with `mcpproxy_quarantine_security` when expected tools are missing.
-4. Proxy path is actually unavailable or insufficient for required output.
-5. You explicitly state:
-   - why proxy could not satisfy the need,
-   - what fallback is used,
-   - why fallback is safe.
-
-## Fallback Approval Gate
-
-Before broad fallback operations, ask for explicit user approval unless the user already granted fallback permission in the current turn.
-
-When fallback is used, include:
-
-- failed discovery queries
-- upstream health result
-- quarantine check result (when applicable)
-- safety rationale for fallback
-
-No silent fallback is allowed.
+Repository-root convention for this environment:
+- Projects are one level deep under `/mnt/PROJECTS`.
+- Default project root format: `/mnt/PROJECTS/<repo-name>`.
+- If repo name is known, you MUST derive and pass `projectPath` using this format.
 
 ---
 
-## Strict Mode: Violation Recovery
+## Common Actions (Hard-Coded Tool Index)
 
-If any rule in this skill is violated:
+Run one discovery call first, then use these stable names:
 
-1. Stop further execution immediately.
-2. Acknowledge the violation briefly and explicitly.
-3. Re-run the flow correctly:
-   - `mcpproxy_retrieve_tools`
-   - exact discovered tool selection
-   - wrapper chosen by `call_with`
-   - required intent metadata
-4. Continue only after compliant state is restored.
-
-Do not continue with mixed compliant/non-compliant execution.
-
-### User-Challenge Override (Mandatory)
-
-If the user says your fallback claim is wrong (examples: "you are wrong", "it is available", "don’t fallback"):
-
-1. Immediately suspend fallback discussion.
-2. Acknowledge possibility of error without argument.
-3. Re-run discovery with narrower explicit queries, `include_stats=true`, and server-health/quarantine checks.
-4. Attempt execution with discovered MCP tools before any further fallback suggestion.
-5. Report what MCP path worked (or exact evidence of continued failure).
-
-Never argue for fallback until this override sequence is completed.
-
----
-
-## Common Violations (Do Not Do)
-
-- Calling upstream tools directly without discovery
-- Guessing `server:tool` names
-- Ignoring `call_with` and picking wrapper manually
-- Omitting `intent_reason` or `intent_data_sensitivity`
-- Switching to native file/system tooling too early
-- Treating sparse results as definitive failure
-- Performing destructive actions without explicit user request
-- Falling back without stating why proxy path failed
-- Claiming MCP is unavailable without running the Discovery Sanity Check
-- Defending fallback after a direct user challenge instead of triggering User-Challenge Override
+| Action | Backend / Rider | Frontend / WebStorm |
+|---|---|---|
+| Read file | `rider-official:get_file_text_by_path` | `webstorm-official:get_file_text_by_path` |
+| Read file (range) | `rider-official:read_file` | `webstorm-official:read_file` |
+| Edit file | `rider-official:replace_text_in_file` | `webstorm-official:replace_text_in_file` |
+| Edit file (undoable) | `rider-official:replace_text_undoable` | `webstorm-official:replace_text_undoable` |
+| Search text | `rider-official:search_in_files_by_text` | `webstorm-official:search_in_files_by_text` |
+| Search regex | `rider-official:search_in_files_by_regex` | `webstorm-official:search_in_files_by_regex` |
+| Create file | `rider-official:create_new_file` | `webstorm-official:create_new_file` |
+| List repos | `rider-official:get_repositories` | `webstorm-official:get_repositories` |
+| Check VCS changes | `rider-official:get_vcs_changes` | `webstorm-official:get_vcs_changes` |
+| Stage/unstage files | `rider-official:vcs_stage_files` | `webstorm-official:vcs_stage_files` |
+| Commit staged changes | `rider-official:vcs_commit` | `webstorm-official:vcs_commit` |
+| Commit log | `rider-official:get_vcs_log` | `webstorm-official:get_vcs_log` |
+| Show commit | `rider-official:vcs_show_commit` | `webstorm-official:vcs_show_commit` |
+| File history | `rider-official:get_vcs_file_history` | `webstorm-official:get_vcs_file_history` |
+| List run configs | `rider-official:list_run_configurations` | `webstorm-official:list_run_configurations` |
+| Run/debug config | `rider-official:start_run_configuration` / `debug_run_configuration` | `webstorm-official:start_run_configuration` / `debug_run_configuration` |
+| Console output | `rider-official:get_console_output` | `webstorm-official:get_console_output` |
+| Test results | `rider-official:get_test_results` | `webstorm-official:get_test_results` |
+| IDE actions | `rider-official:execute_ide_action` | `webstorm-official:execute_ide_action` |
 
 ---
 
-## Compliance Checklist (Before Completion)
+## Detailed Fast Playbooks
 
-- [ ] Skill loaded at task start
-- [ ] Tools discovered via `mcpproxy_retrieve_tools`
-- [ ] Exact discovered tool names used
-- [ ] Correct wrapper used per `call_with`
-- [ ] Intent fields provided on all proxy calls
-- [ ] Truncation handled with `mcpproxy_read_cache` (if needed)
-- [ ] Fallback (if any) justified in user-visible text
-- [ ] Discovery Sanity Check completed before any fallback claim
-- [ ] If user challenged fallback, User-Challenge Override completed
-- [ ] Any policy violation recovered via Strict Mode
+### Playbook A — Backend File Edit (Rider)
+
+1. Discover tools for backend edit action.
+2. Read target file with `rider-official:get_file_text_by_path` (MUST pass `projectPath` when known).
+3. Apply targeted change with `rider-official:replace_text_in_file` (MUST pass `projectPath` when known).
+4. Re-read file with `rider-official:get_file_text_by_path` (MUST pass `projectPath` when known).
+5. If edit fails, execute Failure Protocol.
+
+### Playbook B — Frontend File Edit (WebStorm)
+
+1. Discover tools for frontend edit action.
+2. Read target file with `webstorm-official:get_file_text_by_path` (MUST pass `projectPath` when known).
+3. Apply targeted change with `webstorm-official:replace_text_in_file` (MUST pass `projectPath` when known).
+4. Re-read file with `webstorm-official:get_file_text_by_path` (MUST pass `projectPath` when known).
+5. If edit fails, execute Failure Protocol.
+
+### Playbook C — Commit Flow (Rider Convention)
+
+1. Discover VCS tools.
+2. Inspect changes with `rider-official:get_vcs_changes` (MUST pass `projectPath` when known).
+3. Stage with `rider-official:vcs_stage_files` (MUST pass `projectPath` when known).
+4. Commit with `rider-official:vcs_commit` (MUST pass `projectPath` when known).
+5. Verify via `rider-official:get_vcs_log` (MUST pass `projectPath` when known).
+6. If commit fails, execute Failure Protocol.
+
+### Playbook D — Commit Flow (WebStorm Convention)
+
+1. Discover VCS tools.
+2. Inspect changes with `webstorm-official:get_vcs_changes` (MUST pass `projectPath` when known).
+3. Stage with `webstorm-official:vcs_stage_files` (MUST pass `projectPath` when known).
+4. Commit with `webstorm-official:vcs_commit` (MUST pass `projectPath` when known).
+5. Verify via `webstorm-official:get_vcs_log` (MUST pass `projectPath` when known).
+6. If commit fails, execute Failure Protocol.
+
+### Playbook E — Text Search + Refine
+
+1. Discover search tools for active IDE server.
+2. Run `search_in_files_by_text` (MUST pass `projectPath` when known).
+3. If noisy, run `search_in_files_by_regex` with scope refinement (MUST pass `projectPath` when known).
+4. Read selected file with `get_file_text_by_path` (MUST pass `projectPath` when known).
+5. Edit with `replace_text_in_file` (MUST pass `projectPath` when known) and re-read to verify.
+
+### Playbook F — New File Then Commit
+
+1. Discover file + VCS tools.
+2. Create file with `create_new_file` (MUST pass `projectPath` when known).
+3. Verify file by reading it (MUST pass `projectPath` when known).
+4. Stage file via `vcs_stage_files` (MUST pass `projectPath` when known).
+5. Commit via `vcs_commit` (MUST pass `projectPath` when known).
+6. Verify in `get_vcs_log` (MUST pass `projectPath` when known).
+
+### Playbook G — Backend Search-to-Commit (Rider)
+
+1. Discover Rider search/edit/VCS tools.
+2. Run `rider-official:search_in_files_by_text` (MUST pass `projectPath` when known).
+3. Read target with `rider-official:get_file_text_by_path` (MUST pass `projectPath` when known).
+4. Edit with `rider-official:replace_text_in_file` (MUST pass `projectPath` when known).
+5. Verify edit by re-reading file.
+6. Stage with `rider-official:vcs_stage_files` (MUST pass `projectPath` when known).
+7. Commit with `rider-official:vcs_commit` (MUST pass `projectPath` when known).
+8. Verify with `rider-official:get_vcs_log` (MUST pass `projectPath` when known).
+
+### Playbook H — Frontend Search-to-Commit (WebStorm)
+
+1. Discover WebStorm search/edit/VCS tools.
+2. Run `webstorm-official:search_in_files_by_text` (MUST pass `projectPath` when known).
+3. Read target with `webstorm-official:get_file_text_by_path` (MUST pass `projectPath` when known).
+4. Edit with `webstorm-official:replace_text_in_file` (MUST pass `projectPath` when known).
+5. Verify edit by re-reading file.
+6. Stage with `webstorm-official:vcs_stage_files` (MUST pass `projectPath` when known).
+7. Commit with `webstorm-official:vcs_commit` (MUST pass `projectPath` when known).
+8. Verify with `webstorm-official:get_vcs_log` (MUST pass `projectPath` when known).
+
+### Playbook I — Missing Tool Recovery (MCP-Only)
+
+1. Run broad discovery query for intended action.
+2. Run server-scoped discovery query.
+3. Run action-scoped discovery query.
+4. Run sanity discovery with `include_stats=true`.
+5. Run `mcpproxy_upstream_servers` and inspect health for target server.
+6. Run `mcpproxy_quarantine_security` for target server/tool state.
+7. Retry discovery with exact likely tool names.
+8. If still failing, execute Failure Protocol and STOP (no local fallback).
+
+### Playbook J — Wrapper Compliance Check
+
+1. Discover tool with `mcpproxy_retrieve_tools`.
+2. Capture exact `call_with` value from discovery result.
+3. Use matching wrapper only:
+   - `call_tool_read` → `mcpproxy_call_tool_read`
+   - `call_tool_write` → `mcpproxy_call_tool_write`
+   - `call_tool_destructive` → `mcpproxy_call_tool_destructive`
+4. If tool name semantics conflict with `call_with`, follow `call_with`.
+5. Include intent metadata and execute.
+
+### Playbook K — Rider Unit Tests (rider-official only)
+
+Use this when asked to run/debug .NET unit tests through Rider MCP. Do NOT use removed/third-party IDE automation servers.
+
+1. Discover Rider test/run tools, then call `rider-official:get_mcp_companion_overview` with `projectPath`.
+2. Call `rider-official:list_run_configurations` and inspect the target with `rider-official:get_run_configuration_xml`.
+3. If XML is `type="DotNetProject"`, treat it as a project launch config, not a native Rider Unit Test session. `get_test_results` may stay empty.
+4. For native Unit Test sessions, navigate to the test method/class with `rider-official:navigate_to`, then preflight run-point discovery:
+   `rider-official:get_run_configurations` with `filePath` and `projectPath`.
+5. Proceed with context actions only when `runPoints` is non-empty:
+   - run: `rider-official:execute_ide_action` with `actionId="RiderUnitTestRunContextAction"`
+   - debug: `rider-official:execute_ide_action` with `actionId="RiderUnitTestDebugContextAction"`
+   - poll: `rider-official:get_test_results`, `rider-official:get_console_output`
+6. If `runPoints` is empty, do not claim native Rider test execution is working. For TUnit/Microsoft Testing Platform projects this can happen. Use project run/debug config for debugger access, or report that structured Rider Unit Test results are unavailable through current MCP.
+7. For project-level debugging, use `rider-official:debug_run_configuration`, then inspect with `rider-official:get_debug_variables`. Resume/stop with `execute_ide_action` IDs `Resume` and `Stop`.
+8. If first-chance exceptions pause tests, inspect `$exception`, `get_open_editors`, and source with `get_file_text_by_path`; use `StopOnException`, `OpenExceptionSettings`, `Resume`, or `Stop` actions as needed.
+
+Useful Rider unit-test action IDs discovered by `execute_ide_action(search="Unit Tests")`:
+`RiderUnitTestRunContextAction`, `RiderUnitTestDebugContextAction`, `RiderUnitTestRunSolutionAction`, `RiderUnitTestRunContextTwAction`, `RiderUnitTestDebugContextTwAction`, `RiderUnitTestNavigateToExplorerAction`, `RiderUnitTestNavigateToSessionAction`, `RiderUnitTestSessionAbortAction`, `RiderUnitTestSessionClearResultAction`.
+
+---
+
+## Failure Protocol (No Fallback)
+
+When MCP execution fails, you MUST STOP and output this exact 5-part report:
+
+1. **Discovery Queries:** list exact `mcpproxy_retrieve_tools` queries used.
+2. **Server Health:** summarize relevant entries from `mcpproxy_upstream_servers`.
+3. **Security Status:** summarize relevant `mcpproxy_quarantine_security` state.
+4. **Failing Tool Evidence:** include exact `server:tool`, wrapper, and raw error text.
+5. **Next MCP-Only Recovery Step:** specify one of auth / restart / enable / unquarantine / narrower rediscovery.
+
+You MUST NOT switch to native/local tools.
+
+---
+
+## Common Mistakes (Blocked by Severity)
+
+### BLOCKER
+
+- Using local/native tools as fallback
+- Calling tools without discovery
+- Ignoring discovered `call_with`
+- Missing intent metadata
+
+### MAJOR
+
+- Claiming MCP unavailable without health + quarantine checks
+- Using ambiguous project selection when `projectPath` is known
+- Treating one sparse query as definitive failure
+
+### MINOR
+
+- Skipping `mcpproxy_read_cache` for truncated responses
+- Using broad discovery queries without narrowing passes
+
+---
