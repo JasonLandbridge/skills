@@ -49,6 +49,19 @@ When capability is uncertain, you MUST run 3 narrowing discovery queries:
 If still unclear, you MUST run one sanity pass with `include_stats=true` and retry with explicit likely names.
 You MUST NOT infer unavailability from one sparse query.
 
+### Discovery False-Negative Guardrail (Mandatory)
+
+If all 3 narrowing discovery queries return empty/irrelevant results, but the target server is healthy and you have a known exact tool name from this skill hard-coded index, you MUST attempt a direct MCP call to that exact `server:tool` before declaring blockage.
+
+Required sequence before any "blocked" claim:
+1. Complete the 3 narrowing discovery queries (+ optional `include_stats=true` sanity pass).
+2. Confirm server health via `mcpproxy_upstream_servers`.
+3. Confirm quarantine status via `mcpproxy_quarantine_security`.
+4. Attempt at least one direct call to a known exact tool name (for example `rider-official:get_file_text_by_path` with `projectPath` + path args).
+5. If the direct call fails, include the raw tool error in Failure Protocol.
+
+Do NOT treat retrieval ranking misses as proof that tools are unavailable. Retrieval can be noisy; direct invocation of known exact tool names is the required tie-breaker.
+
 ### Golden Query Pack (Copy/Paste)
 
 - `rider-official backend file read edit search`
