@@ -13,11 +13,11 @@ If a capability is available through MCP, it MUST be executed through `mcpproxy`
 
 ## First 30 Seconds (Startup Checklist)
 
-1. Run `mcpproxy_retrieve_tools` for the immediate action.
-2. Select exact returned `server:tool`.
-3. Route with exact returned `call_with`.
+1. Run `mcpproxy_retrieve_tools` once for the immediate action, unless an exact known-good tool for this session/capability is already cached below.
+2. Select exact returned `server:tool` and cache its wrapper (`call_tool_read/write/destructive`) for reuse.
+3. Reuse cached exact tool names for the same server/capability; do not repeatedly rediscover stable tools.
 4. Include `intent_reason` and `intent_data_sensitivity` on every proxied call.
-5. If tools are missing/unclear, run health and quarantine checks before any further action.
+5. If cached tools fail or tools are missing/unclear, run health and quarantine checks before any further action.
 
 ---
 
@@ -25,28 +25,33 @@ If a capability is available through MCP, it MUST be executed through `mcpproxy`
 
 1. You MUST use `mcpproxy` first.
 2. You MUST NOT guess tool names.
-3. You MUST run `mcpproxy_retrieve_tools` before upstream calls.
-4. You MUST use exact discovered `server:tool` names.
-5. You MUST route by discovered `call_with` only:
+3. You MUST run `mcpproxy_retrieve_tools` before first use of an unknown capability.
+4. You MAY reuse exact known-good tool names from this skill index, project skills, or earlier successful calls in the same session without rediscovery.
+5. You MUST use exact discovered/cached `server:tool` names.
+6. You MUST route by discovered/cached `call_with` only:
    - `call_tool_read` → `mcpproxy_call_tool_read`
    - `call_tool_write` → `mcpproxy_call_tool_write`
    - `call_tool_destructive` → `mcpproxy_call_tool_destructive`
-6. Every proxy call MUST include:
+7. Every proxy call MUST include:
    - `intent_reason`
    - `intent_data_sensitivity` (`public|internal|private|unknown`)
-7. You MUST continue truncated responses via `mcpproxy_read_cache`.
-8. You MUST NOT use local/native fallback tools.
+8. You MUST continue truncated responses via `mcpproxy_read_cache`.
+9. You MUST NOT use local/native fallback tools.
 
 ---
 
-## Discovery Policy (Deterministic)
+## Discovery Policy (Deterministic, Cached)
 
-When capability is uncertain, you MUST run 3 narrowing discovery queries:
+Use discovery for unknown capabilities, not for every call. Maintain a session-local cache of exact `server:tool` names and wrappers after successful discovery, direct-call success, or tool/security inspection.
+
+When capability is known from the cache/index, call it directly with the cached wrapper.
+
+When capability is uncertain, run 3 narrowing discovery queries:
 1. Broad capability query
 2. Server-scoped query
 3. Action-scoped query
 
-If still unclear, you MUST run one sanity pass with `include_stats=true` and retry with explicit likely names.
+If still unclear, run one sanity pass with `include_stats=true` and retry with explicit likely names.
 You MUST NOT infer unavailability from one sparse query.
 
 ### Discovery False-Negative Guardrail (Mandatory)
@@ -60,7 +65,7 @@ Required sequence before any "blocked" claim:
 4. Attempt at least one direct call to a known exact tool name (for example `rider-official:get_file_text_by_path` with `projectPath` + path args).
 5. If the direct call fails, include the raw tool error in Failure Protocol.
 
-Do NOT treat retrieval ranking misses as proof that tools are unavailable. Retrieval can be noisy; direct invocation of known exact tool names is the required tie-breaker.
+Do NOT treat retrieval ranking misses as proof that tools are unavailable. Retrieval can be noisy; direct invocation of known exact tool names is the required tie-breaker. After a direct invocation succeeds, cache that tool and wrapper for the rest of the session.
 
 ### Golden Query Pack (Copy/Paste)
 
@@ -90,7 +95,7 @@ You MUST proceed only after these checks are evaluated.
 - **Backend C#/.NET work MUST default to `rider-official`.**
 - **Frontend TS/JS/Vue/CSS/HTML work MUST default to `webstorm-official`.**
 
-`rider-official` and `webstorm-official` share similar tool layout for many read/edit/search actions. You MAY swap server prefixes for equivalent actions when needed, while keeping split defaults for consistency.
+`rider-official` and `webstorm-official` share similar tool layout for many read/edit/search actions, but they are not interchangeable when project-specific guidance assigns ownership. If AGENTS.md or a loaded project skill says backend = Rider and frontend = WebStorm, that routing overrides generic equivalence. Only swap server prefixes after retry, health, quarantine checks, and an explicit note that the preferred IDE MCP is unavailable.
 
 ### projectPath Rule
 
