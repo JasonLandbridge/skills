@@ -37,6 +37,7 @@ If a capability is available through MCP, it MUST be executed through `mcpproxy`
    - `intent_data_sensitivity` (`public|internal|private|unknown`)
 8. You MUST continue truncated responses via `mcpproxy_read_cache`.
 9. You MUST NOT use local/native fallback tools.
+10. You MUST NOT stage or commit changes unless the user explicitly asks for a commit/staging operation in the current task.
 
 ---
 
@@ -110,7 +111,7 @@ Repository-root convention for this environment:
 
 ## Common Actions (Hard-Coded Tool Index)
 
-Run one discovery call first, then use these stable names:
+Run one discovery call first per session/capability, then cache and reuse these stable names:
 
 | Action | Backend / Rider | Frontend / WebStorm |
 |---|---|---|
@@ -134,6 +135,19 @@ Run one discovery call first, then use these stable names:
 | Test results | `rider-official:get_test_results` | `webstorm-official:get_test_results` |
 | IDE actions | `rider-official:execute_ide_action` | `webstorm-official:execute_ide_action` |
 
+### Purpose-Built .NET Test Tools
+
+When `dotnet-test-mcp` is healthy, use it for .NET test execution before Rider run configurations, IDE test sessions, or any terminal-style fallback. After one discovery/health check, these exact tool names may be cached and invoked directly:
+
+| Action | Tool | Wrapper |
+|---|---|---|
+| List test projects | `dotnet-test-mcp:list_test_projects` | `mcpproxy_call_tool_read` |
+| List tests summary | `dotnet-test-mcp:list_tests_summary` | `mcpproxy_call_tool_read` |
+| Run one test | `dotnet-test-mcp:run_single_test` | `mcpproxy_call_tool_write` |
+| Run class tests | `dotnet-test-mcp:run_all_tests_in_class` | `mcpproxy_call_tool_write` |
+| Run project tests | `dotnet-test-mcp:run_all_tests_for_project` | `mcpproxy_call_tool_write` |
+| Run all tests | `dotnet-test-mcp:run_all_tests` | `mcpproxy_call_tool_write` |
+
 ---
 
 ## Detailed Fast Playbooks
@@ -156,6 +170,8 @@ Run one discovery call first, then use these stable names:
 
 ### Playbook C — Commit Flow (Rider Convention)
 
+Use this playbook ONLY when the user explicitly asks to commit/stage changes. Do not infer commit intent from finishing edits, plans, tests, or verification.
+
 1. Discover VCS tools.
 2. Inspect changes with `rider-official:get_vcs_changes` (MUST pass `projectPath` when known).
 3. Stage with `rider-official:vcs_stage_files` (MUST pass `projectPath` when known).
@@ -164,6 +180,8 @@ Run one discovery call first, then use these stable names:
 6. If commit fails, execute Failure Protocol.
 
 ### Playbook D — Commit Flow (WebStorm Convention)
+
+Use this playbook ONLY when the user explicitly asks to commit/stage changes. Do not infer commit intent from finishing edits, plans, tests, or verification.
 
 1. Discover VCS tools.
 2. Inspect changes with `webstorm-official:get_vcs_changes` (MUST pass `projectPath` when known).
@@ -180,36 +198,35 @@ Run one discovery call first, then use these stable names:
 4. Read selected file with `get_file_text_by_path` (MUST pass `projectPath` when known).
 5. Edit with `replace_text_in_file` (MUST pass `projectPath` when known) and re-read to verify.
 
-### Playbook F — New File Then Commit
+### Playbook F — New File Creation
 
-1. Discover file + VCS tools.
+Create and verify files only. Stage/commit steps require an explicit current user request to stage or commit.
+
+1. Discover file tools.
 2. Create file with `create_new_file` (MUST pass `projectPath` when known).
 3. Verify file by reading it (MUST pass `projectPath` when known).
-4. Stage file via `vcs_stage_files` (MUST pass `projectPath` when known).
-5. Commit via `vcs_commit` (MUST pass `projectPath` when known).
-6. Verify in `get_vcs_log` (MUST pass `projectPath` when known).
+4. Stop after readback verification unless the user explicitly requested staging or committing.
+5. If explicit commit intent exists, switch to Playbook C or D.
 
-### Playbook G — Backend Search-to-Commit (Rider)
+### Playbook G — Backend Search-to-Verify (Rider)
 
 1. Discover Rider search/edit/VCS tools.
 2. Run `rider-official:search_in_files_by_text` (MUST pass `projectPath` when known).
 3. Read target with `rider-official:get_file_text_by_path` (MUST pass `projectPath` when known).
 4. Edit with `rider-official:replace_text_in_file` (MUST pass `projectPath` when known).
 5. Verify edit by re-reading file.
-6. Stage with `rider-official:vcs_stage_files` (MUST pass `projectPath` when known).
-7. Commit with `rider-official:vcs_commit` (MUST pass `projectPath` when known).
-8. Verify with `rider-official:get_vcs_log` (MUST pass `projectPath` when known).
+6. Stop after readback verification unless the user explicitly requested staging or committing.
+7. If explicit commit intent exists, switch to Playbook C.
 
-### Playbook H — Frontend Search-to-Commit (WebStorm)
+### Playbook H — Frontend Search-to-Verify (WebStorm)
 
 1. Discover WebStorm search/edit/VCS tools.
 2. Run `webstorm-official:search_in_files_by_text` (MUST pass `projectPath` when known).
 3. Read target with `webstorm-official:get_file_text_by_path` (MUST pass `projectPath` when known).
 4. Edit with `webstorm-official:replace_text_in_file` (MUST pass `projectPath` when known).
 5. Verify edit by re-reading file.
-6. Stage with `webstorm-official:vcs_stage_files` (MUST pass `projectPath` when known).
-7. Commit with `webstorm-official:vcs_commit` (MUST pass `projectPath` when known).
-8. Verify with `webstorm-official:get_vcs_log` (MUST pass `projectPath` when known).
+6. Stop after readback verification unless the user explicitly requested staging or committing.
+7. If explicit commit intent exists, switch to Playbook D.
 
 ### Playbook I — Missing Tool Recovery (MCP-Only)
 
@@ -237,18 +254,19 @@ Run one discovery call first, then use these stable names:
 
 Use this when asked to run/debug .NET unit tests through Rider MCP. Do NOT use removed/third-party IDE automation servers.
 
-1. Discover Rider test/run tools, then call `rider-official:get_mcp_companion_overview` with `projectPath`.
-2. Call `rider-official:list_run_configurations` and inspect the target with `rider-official:get_run_configuration_xml`.
-3. If XML is `type="DotNetProject"`, treat it as a project launch config, not a native Rider Unit Test session. `get_test_results` may stay empty.
-4. For native Unit Test sessions, navigate to the test method/class with `rider-official:navigate_to`, then preflight run-point discovery:
+1. If `dotnet-test-mcp` is healthy and the task is ordinary .NET test execution, prefer the purpose-built `dotnet-test-mcp:*` tools from the hard-coded index and skip Rider run/test sessions. Use Rider here only for IDE-specific debugging, run configuration inspection, or when structured IDE state is required.
+2. Discover Rider test/run tools, then call `rider-official:get_mcp_companion_overview` with `projectPath`.
+3. Call `rider-official:list_run_configurations` and inspect the target with `rider-official:get_run_configuration_xml`.
+4. If XML is `type="DotNetProject"`, treat it as a project launch config, not a native Rider Unit Test session. `get_test_results` may stay empty.
+5. For native Unit Test sessions, navigate to the test method/class with `rider-official:navigate_to`, then preflight run-point discovery:
    `rider-official:get_run_configurations` with `filePath` and `projectPath`.
-5. Proceed with context actions only when `runPoints` is non-empty:
+6. Proceed with context actions only when `runPoints` is non-empty:
    - run: `rider-official:execute_ide_action` with `actionId="RiderUnitTestRunContextAction"`
    - debug: `rider-official:execute_ide_action` with `actionId="RiderUnitTestDebugContextAction"`
    - poll: `rider-official:get_test_results`, `rider-official:get_console_output`
-6. If `runPoints` is empty, do not claim native Rider test execution is working. For TUnit/Microsoft Testing Platform projects this can happen. Use project run/debug config for debugger access, or report that structured Rider Unit Test results are unavailable through current MCP.
-7. For project-level debugging, use `rider-official:debug_run_configuration`, then inspect with `rider-official:get_debug_variables`. Resume/stop with `execute_ide_action` IDs `Resume` and `Stop`.
-8. If first-chance exceptions pause tests, inspect `$exception`, `get_open_editors`, and source with `get_file_text_by_path`; use `StopOnException`, `OpenExceptionSettings`, `Resume`, or `Stop` actions as needed.
+7. If `runPoints` is empty, do not claim native Rider test execution is working. For TUnit/Microsoft Testing Platform projects this can happen. Use project run/debug config for debugger access, or report that structured Rider Unit Test results are unavailable through current MCP.
+8. For project-level debugging, use `rider-official:debug_run_configuration`, then inspect with `rider-official:get_debug_variables`. Resume/stop with `execute_ide_action` IDs `Resume` and `Stop`.
+9. If first-chance exceptions pause tests, inspect `$exception`, `get_open_editors`, and source with `get_file_text_by_path`; use `StopOnException`, `OpenExceptionSettings`, `Resume`, or `Stop` actions as needed.
 
 Useful Rider unit-test action IDs discovered by `execute_ide_action(search="Unit Tests")`:
 `RiderUnitTestRunContextAction`, `RiderUnitTestDebugContextAction`, `RiderUnitTestRunSolutionAction`, `RiderUnitTestRunContextTwAction`, `RiderUnitTestDebugContextTwAction`, `RiderUnitTestNavigateToExplorerAction`, `RiderUnitTestNavigateToSessionAction`, `RiderUnitTestSessionAbortAction`, `RiderUnitTestSessionClearResultAction`.
@@ -277,6 +295,7 @@ You MUST NOT switch to native/local tools.
 - Calling tools without discovery
 - Ignoring discovered `call_with`
 - Missing intent metadata
+- Staging or committing without explicit current user request
 
 ### MAJOR
 
