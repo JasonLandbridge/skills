@@ -137,16 +137,20 @@ Run one discovery call first per session/capability, then cache and reuse these 
 
 ### Purpose-Built .NET Test Tools
 
-When `dotnet-test-mcp` is healthy, use it for .NET test execution before Rider run configurations, IDE test sessions, or any terminal-style fallback. After one discovery/health check, these exact tool names may be cached and invoked directly:
+When `dotnet-test-mcp` is healthy, use it for .NET test execution before Rider run configurations, IDE test sessions, or any terminal-style fallback. After one discovery/health check, these exact tool names may be cached and invoked directly.
 
-| Action | Tool | Wrapper |
-|---|---|---|
-| List test projects | `dotnet-test-mcp:list_test_projects` | `mcpproxy_call_tool_read` |
-| List tests summary | `dotnet-test-mcp:list_tests_summary` | `mcpproxy_call_tool_read` |
-| Run one test | `dotnet-test-mcp:run_single_test` | `mcpproxy_call_tool_write` |
-| Run class tests | `dotnet-test-mcp:run_all_tests_in_class` | `mcpproxy_call_tool_write` |
-| Run project tests | `dotnet-test-mcp:run_all_tests_for_project` | `mcpproxy_call_tool_write` |
-| Run all tests | `dotnet-test-mcp:run_all_tests` | `mcpproxy_call_tool_write` |
+Important: treat these tools as read-wrapper tools unless discovery explicitly returns a different `call_with` value. In the current environment, direct calls to these exact names are known-good through `mcpproxy_call_tool_read`. Always pass `workingDirectory` when the MCP server was launched outside the target repo or when working in a worktree.
+
+| Action | Tool | Wrapper | Key args |
+|---|---|---|---|
+| List test projects | `dotnet-test-mcp:list_test_projects` | `mcpproxy_call_tool_read` | `workingDirectory` optional |
+| List tests summary | `dotnet-test-mcp:list_tests_summary` | `mcpproxy_call_tool_read` | `prefix`, `workingDirectory` optional |
+| Run one test | `dotnet-test-mcp:run_single_test` | `mcpproxy_call_tool_read` | `qualifiedMethodName`, `project`, `workingDirectory`, `includeStackTrace` |
+| Run class tests | `dotnet-test-mcp:run_all_tests_in_class` | `mcpproxy_call_tool_read` | `className`, `project`, `workingDirectory`, `includeStackTrace` |
+| Run project tests | `dotnet-test-mcp:run_all_tests_for_project` | `mcpproxy_call_tool_read` | `projectPath`, `workingDirectory`, `includeStackTrace` |
+| Run all tests | `dotnet-test-mcp:run_all_tests` | `mcpproxy_call_tool_read` | `workingDirectory`, `includeStackTrace` optional |
+
+For TUnit/Microsoft Testing Platform projects, `run_single_test` and `run_all_tests_in_class` should use MTP `--treenode-filter` internally. If they fail with a generic invocation error, first reproduce with `list_tests_summary`, then patch against the exact command/assertion failure before falling back to broader project runs.
 
 ---
 
