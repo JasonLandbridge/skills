@@ -16,6 +16,9 @@ contract:
     - "Fresh mcpproxy_retrieve_tools output wins over this registry."
     - "Always include intent_reason and intent_data_sensitivity on proxied calls."
     - "Always obey guard notes and explicit user-request requirements, even when call is read."
+    - "Registry args are minimum viable first-call templates, not exhaustive schemas."
+    - "Direct registry retries for risky actions require explicit current user intent."
+    - "When a registry entry appears stale, stop retrying it and refresh from discovery/schema."
     - "Do not run skillshare commands during normal registry lookup, validation, or maintenance."
     - "Validate this skill through MCP schema freshness and file diagnostics for this folder, not target sync."
     - "Never guess a server:tool name that is not listed here or returned by discovery."
@@ -405,30 +408,40 @@ tools:
   "dotnet-test-mcp:list_test_projects":
     call: read
     args: { workingDirectory: "<project-root>" }
+    verified: { source: "retrieve_tools", notes: "Optional: workingDirectory." }
 
   "dotnet-test-mcp:list_tests_summary":
     call: read
-    args: { workingDirectory: "<project-root>", includeTests: false }
+    args: { workingDirectory: "<project-root>", includeTests: false, requireTests: false }
+    verified: { source: "retrieve_tools", notes: "Supports prefix, projectPath, requireTests, includeTests, workingDirectory." }
 
   "dotnet-test-mcp:run_single_test":
     call: read
     risk: executes-code
     args: { testName: "<fully-qualified-test-name>", projectPath: "<project-root>/<test-project.csproj>", workingDirectory: "<project-root>", includeStackTrace: false }
+    guard: "Executes a test process. Current schema uses testName; projectPath is an alias for project."
+    verified: { source: "retrieve_tools", notes: "Required: testName. Optional: project/projectPath, workingDirectory, includeStackTrace." }
 
   "dotnet-test-mcp:run_all_tests_in_class":
     call: read
     risk: executes-code
     args: { className: "<fully-qualified-test-class-name>", projectPath: "<project-root>/<test-project.csproj>", workingDirectory: "<project-root>", includeStackTrace: false }
+    guard: "Executes a test process. projectPath is an alias for project."
+    verified: { source: "retrieve_tools", notes: "Required: className. Optional: project/projectPath, workingDirectory, includeStackTrace." }
 
   "dotnet-test-mcp:run_all_tests_for_project":
     call: read
     risk: executes-code
     args: { projectPath: "<project-root>/<test-project.csproj>", workingDirectory: "<project-root>", includeStackTrace: false }
+    guard: "Executes all tests for one project file."
+    verified: { source: "retrieve_tools", notes: "Required: projectPath. Optional: workingDirectory, includeStackTrace." }
 
   "dotnet-test-mcp:run_all_tests":
     call: read
     risk: executes-code
     args: { workingDirectory: "<project-root>", includeStackTrace: false }
+    guard: "Executes all tests in the solution or working directory."
+    verified: { source: "retrieve_tools", notes: "Optional: workingDirectory, includeStackTrace." }
 
   # .NET SDK MCP tools
   "dotnet-mcp:dotnet_project":

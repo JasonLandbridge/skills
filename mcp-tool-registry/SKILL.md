@@ -1,57 +1,189 @@
 ---
 name: mcp-tool-registry
-description: Use when an MCP-only workflow needs an exact cached server:tool name, mcpproxy wrapper, or argument template for known MCP tools, especially after /only-use-mcp-tools discovery or when retrieval misses a stable tool.
+description: Use when an MCP-only workflow needs exact cached server:tool names, mcpproxy wrappers, argument templates, guard notes, or a known-tool retry after mcpproxy retrieval misses a stable tool.
 ---
 
 # MCP Tool Registry
 
 ## Purpose
 
-This skill is a small cache of verified MCP `server:tool` names and argument shapes. It works with `/only-use-mcp-tools`; it does **not** replace that skill's discovery, health, quarantine, intent-metadata, or fail-closed rules.
+This skill is the exact-tool cache for MCP-only agents. It provides verified `server:tool` names, cached mcpproxy wrapper routes, minimal argument templates, and guard notes for stable MCP tools.
 
-Use `mcp-tool-registry.yaml` when you already know the capability/server and need a reliable exact tool name or args template without guessing.
+Use it with `only-use-mcp-tools`. The policy skill decides **that MCP must be used** and how to fail closed. This registry helps agents avoid guessing once MCP use is required.
 
-## Contract with `/only-use-mcp-tools`
+## Relationship to `only-use-mcp-tools`
 
-- `/only-use-mcp-tools` is the policy source of truth.
-- This registry is only a lookup table for known stable tools.
-- `call` means the cached mcpproxy wrapper suffix from verified `call_with`:
-  - `read` → `mcpproxy_call_tool_read`
-  - `write` → `mcpproxy_call_tool_write`
-  - `destructive` → `mcpproxy_call_tool_destructive`
-- `call` is **not** a safety label. Some tools that edit files, stage git changes, or create commits currently route through `call_tool_read`; obey the `risk`/`guard` notes and user-confirmation rules anyway.
-- Do not run `skillshare` commands as part of normal registry lookup, validation, or maintenance; target sync/deployment is outside this skill.
-- Verification for this skill means checking MCP schema freshness and file diagnostics for this folder, not synchronizing skill targets.
-- If fresh `mcpproxy_retrieve_tools` output disagrees with this registry, current discovery wins. Update the registry only after the tool schema is verified.
-- Never invent tool names or args from registry patterns.
+- `only-use-mcp-tools` MUST load this skill immediately.
+- `only-use-mcp-tools` is the policy source of truth: discovery, health checks, quarantine checks, intent metadata, user-confirmation gates, and no local fallback.
+- This registry is the lookup source of truth for known stable exact tools and first-call argument shapes.
+- Fresh `mcpproxy_retrieve_tools` output wins over this registry for current wrapper/schema details.
+- Successful calls in the current session may be cached, but never invent a tool name or argument from patterns.
 
-## Lookup Workflow
+## Registry File
 
-1. Choose the target capability and server from `/only-use-mcp-tools` routing rules.
-2. If the capability is unknown or disputed, run `mcpproxy_retrieve_tools` first. On missing/unclear results, follow the `/only-use-mcp-tools` health + quarantine recovery path.
-3. Open `.skillshare/skills/mcp-tool-registry/mcp-tool-registry.yaml`.
-4. Find the exact `server:tool` key.
-5. Copy the `args` shape and replace placeholders such as `<project-root>`, `<relative-path>`, `<owner>`, `<repo>`, and `<branch>`.
-6. Use the wrapper indicated by `call` unless fresh discovery says otherwise.
-7. Include `intent_reason` and `intent_data_sensitivity` on every proxied call.
-8. Read and obey `guard` before any file edit, process execution, VCS operation, remote write, browser action, or destructive operation.
+Primary data lives in:
+
+```text
+mcp-tool-registry.yaml
+```
+
+Each entry uses this shape:
+
+```yaml
+"server:tool":
+  call: read | write | destructive
+  risk: optional-risk-category
+  args: { minimal: "<placeholder-template>" }
+  guard: "When to require extra care or explicit user intent."
+  verified:
+    source: retrieve_tools | direct_call | manual_schema_check
+    notes: "Optional short freshness note."
+```
+
+`call` is only the cached mcpproxy wrapper route:
+
+| `call` | Wrapper |
+| --- | --- |
+| `read` | `mcpproxy_call_tool_read` |
+| `write` | `mcpproxy_call_tool_write` |
+| `destructive` | `mcpproxy_call_tool_destructive` |
+
+**Important:** `call` is not a safety label. Some tools that edit files, stage commits, execute code, or mutate browser/remote state may currently route through `call: read`. Always obey `risk`, `guard`, and `only-use-mcp-tools` safety gates.
+
+## Fast Lookup Workflow
+
+1. Start from the policy/routing decision in `only-use-mcp-tools`.
+2. Open `mcp-tool-registry.yaml`.
+3. Find the exact `server:tool` key for the capability.
+4. Copy the `args` template and replace every `<placeholder>`.
+5. Use the wrapper indicated by `call`, unless fresh discovery says otherwise.
+6. Add `intent_reason` and `intent_data_sensitivity` to the mcpproxy call.
+7. Read and obey `risk`/`guard` before edits, process execution, VCS operations, browser actions, remote writes, or destructive operations.
+8. Cache successful exact tool names and wrappers for the rest of the session.
+
+## Argument Template Rules
+
+Registry `args` are **minimum viable first-call templates**, not exhaustive schemas.
+
+- Use the template to avoid missing common required fields.
+- Add optional fields only when fresh discovery/schema confirms them or the tool has already accepted them in this session.
+- Prefer safe defaults: limited output, no overwrite, no force, no push, no destructive flags.
+- Replace every `<placeholder>` before calling.
+- If a needed field is absent from the template, use fresh discovery to confirm the field name before adding it.
+- If fresh discovery disagrees with the template, fresh discovery wins and the registry should be refreshed.
+
+## When Retrieval Misses a Known Tool
+
+Use this registry as a deterministic tie-breaker, not as a replacement for discovery.
+
+Required sequence before declaring a known capability blocked:
+
+1. Run broad, server-scoped, and action-scoped `mcpproxy_retrieve_tools` queries.
+2. Check `mcp-tool-registry.yaml` for likely exact entries.
+3. Check server health with `mcpproxy_upstream_servers`.
+4. Check quarantine/tool state with `mcpproxy_quarantine_security`.
+5. Attempt one direct call to the exact registry entry only if the server is healthy and the action is read-only or already allowed by current user intent and the registry guard.
+6. If it fails, report the raw tool error through the `only-use-mcp-tools` Failure Protocol.
+
+Never use a registry tie-breaker to perform destructive, remote-write, VCS-write, browser-mutation, or code-execution actions unless the user explicitly requested that action in the current task.
+
+## Stale Entry Recovery
+
+When a registry entry fails because a schema, wrapper, server name, or argument changed:
+
+1. Stop retrying the same stale call.
+2. Run fresh discovery using the exact tool name plus capability words.
+3. If discovery finds the tool, use the fresh `call_with` and schema.
+4. If discovery does not find it, run the health/security gate.
+5. Report that the registry entry appears stale and include the exact failing field/error.
+6. Update YAML only after the new schema is verified through discovery or a successful direct call.
+
+## Common Action Map
+
+Use this table to choose likely registry keys, then use YAML for exact args and guards.
+
+| Capability | Likely registry area |
+| --- | --- |
+| Backend/.NET IDE file/search/edit/VCS/run/test state | `rider-official:*` |
+| Frontend/Vue/TS/JS/CSS IDE file/search/edit/VCS/run/test state | `webstorm-official:*` |
+| .NET test execution outside IDE test UI | `dotnet-test-mcp:*` |
+| .NET SDK/EF project operations | `dotnet-mcp:*` |
+| Git status/diff/commit via dedicated server | `git-mcp-server:*` |
+| GitHub repository, issue, PR, Actions, remote file operations | `github:*` |
+| Browser inspection/automation through Chrome DevTools | `chrome-devtools:*` |
+| Browser inspection/automation through Playwright | `playwright:*` |
+| Library documentation lookup | `context7:*` |
+
+## Golden Discovery Queries
+
+Use these when retrieval needs help finding stable tools:
+
+- `rider-official backend file read edit search`
+- `webstorm-official frontend file read edit search`
+- `rider-official vcs changes stage commit log`
+- `webstorm-official vcs changes stage commit log`
+- `rider-official get_file_text_by_path replace_text_in_file`
+- `webstorm-official get_file_text_by_path replace_text_in_file`
+- `rider-official search_in_files_by_text search_in_files_by_regex`
+- `webstorm-official search_in_files_by_text search_in_files_by_regex`
+- `dotnet-test-mcp list run single class project tests`
+- `dotnet-test-mcp run_single_test testName project projectPath workingDirectory`
+- `github pull request issue actions file contents search code`
+- `chrome-devtools console network snapshot screenshot navigate evaluate`
+- `playwright browser snapshot console network navigate evaluate`
+
+## Placeholder Rules
+
+Replace every placeholder before calling a tool:
+
+| Placeholder | Meaning |
+| --- | --- |
+| `<project-root>` | Absolute local project root, for example `/mnt/PROJECTS/<repo>` |
+| `<relative-path>` | Path relative to project root |
+| `<relative-directory>` | Directory relative to project root |
+| `<repo-path>` | Path inside remote repository |
+| `<owner>`, `<repo>`, `<branch>` | Remote repository identifiers |
+| `<url>`, `<sha-or-ref>`, `<workflow-id-or-file>` | Remote/API identifiers |
+| `<fully-qualified-test-name>` | Fully qualified test method name, or short method name when tool supports it |
+| `<test-project.csproj>` | Test project file path relative to project root |
+
+Do not leave placeholder values in calls. If a required value is unknown, discover it through MCP or ask the user.
 
 ## Maintenance Rules
 
-Keep this registry small and boring:
+Keep the registry small, current, and boring:
 
-- Add only exact `server:tool` names that have been verified against current mcpproxy schemas.
-- Store only the minimal args needed for a good first call.
+- Add only exact `server:tool` names verified against current mcpproxy schemas.
+- Store the minimal first-call args that prevent common mistakes.
 - Prefer placeholders over project-specific values.
-- Add `risk`/`guard` when the tool can mutate files, run code, touch VCS, change remote services, or execute browser JavaScript.
+- Add `risk` and `guard` whenever a tool can mutate files, run code, alter VCS, write remote state, manipulate browser state, or delete anything.
+- Add `verified` only when it helps future agents understand schema freshness; avoid noisy timestamps unless actively maintained.
 - Remove obsolete entries instead of preserving historical variants.
+- If discovery disagrees with the registry, verify schema freshness before editing the YAML.
+- Do not run `skillshare` sync/deployment commands during normal lookup, validation, or maintenance of this registry.
+
+## Validation Checklist
+
+After editing this skill or YAML:
+
+1. Read both `SKILL.md` and `mcp-tool-registry.yaml` back.
+2. Confirm the frontmatter description only states when to use the skill.
+3. Confirm every YAML tool key is an exact `server:tool` string.
+4. Confirm every tool has `call` and `args`.
+5. Confirm risky tools include `risk` and `guard`.
+6. Confirm direct-call retry rules block unapproved mutation/execution.
+7. Confirm `only-use-mcp-tools` still requires this skill to be loaded.
+8. Do not stage or commit unless the current user explicitly asked.
 
 ## Common Mistakes
 
 | Mistake | Fix |
 | --- | --- |
-| Treating the registry as a replacement for discovery | Use it only for known stable tools; fresh discovery wins. |
-| Assuming `call: read` means harmless | `call` is the wrapper route, not the permission model; check `risk` and `guard`. |
-| Copying args without replacing placeholders | Replace every `<...>` value before calling the tool. |
-| Staging, committing, pushing, or remote-writing because an entry exists | Do it only when the current user explicitly requested that action. |
-| Declaring MCP unavailable after one failed lookup | Follow `/only-use-mcp-tools` failure protocol, including health/quarantine checks and direct known-tool retry. |
+| Treating this registry as permission to skip `only-use-mcp-tools` | Load and obey `only-use-mcp-tools`; this is only exact-tool data. |
+| Assuming `call: read` means harmless | Check `risk`/`guard`; wrapper route is not safety classification. |
+| Treating args as exhaustive schemas | Templates are minimum viable first calls; fresh schema wins. |
+| Copying args without replacing placeholders | Replace every `<...>` value or discover/ask for it. |
+| Guessing a similar tool name because the pattern looks obvious | Run discovery or add the exact verified entry first. |
+| Retrying a stale registry entry repeatedly | Run exact-name discovery, use fresh schema, and mark registry refresh needed. |
+| Staging, committing, pushing, deleting, executing code, or remote-writing because an entry exists | Require explicit current user intent and follow the guard. |
+| Declaring MCP unavailable after one failed lookup | Follow the retrieval-miss sequence and Failure Protocol. |
