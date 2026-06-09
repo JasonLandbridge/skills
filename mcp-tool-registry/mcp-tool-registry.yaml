@@ -1,0 +1,643 @@
+# Minimal MCP tool registry
+# Exact MCP server:tool names and first-call argument templates verified against mcpproxy schemas.
+# This file is a cache for /only-use-mcp-tools, not a replacement for discovery or safety rules.
+
+version: 1
+kind: mcp-tool-registry
+
+contract:
+  companionSkill: "only-use-mcp-tools"
+  callMeaning: "Cached mcpproxy wrapper suffix from verified retrieve_tools call_with; not a semantic safety label."
+  wrapperMap:
+    read: "mcpproxy_call_tool_read"
+    write: "mcpproxy_call_tool_write"
+    destructive: "mcpproxy_call_tool_destructive"
+  rules:
+    - "Fresh mcpproxy_retrieve_tools output wins over this registry."
+    - "Always include intent_reason and intent_data_sensitivity on proxied calls."
+    - "Always obey guard notes and explicit user-request requirements, even when call is read."
+    - "Do not run skillshare commands during normal registry lookup, validation, or maintenance."
+    - "Validate this skill through MCP schema freshness and file diagnostics for this folder, not target sync."
+    - "Never guess a server:tool name that is not listed here or returned by discovery."
+
+placeholders:
+  projectRoot: "<project-root>"
+  relativePath: "<relative-path>"
+  relativeDirectory: "<relative-directory>"
+  repoPath: "<repo-path>"
+  owner: "<owner>"
+  repo: "<repo>"
+  branch: "<branch>"
+  tag: "<tag>"
+  url: "<url>"
+  sha: "<sha-or-ref>"
+  workflowId: "<workflow-id-or-file>"
+  runId: "<workflow-run-id>"
+  jobId: "<job-id>"
+
+# risk values are advisory only. The mcpproxy wrapper is still selected by `call`.
+tools:
+  # JetBrains Rider / backend-oriented project tools
+  "rider-official:get_file_text_by_path":
+    call: read
+    args: { projectPath: "<project-root>", pathInProject: "<relative-path>", truncateMode: "NONE" }
+
+  "rider-official:read_file":
+    call: read
+    args: { projectPath: "<project-root>", file_path: "<relative-path>", mode: "slice", start_line: 1, max_lines: 200 }
+
+  "rider-official:replace_text_in_file":
+    call: read
+    risk: file-write
+    args: { projectPath: "<project-root>", pathInProject: "<relative-path>", oldText: "<exact-existing-text>", newText: "<replacement-text>", replaceAll: false }
+    guard: "Edits and saves a file. Read wrapper mirrors current call_with; use only for user-requested edits."
+
+  "rider-official:replace_text_undoable":
+    call: read
+    risk: file-write
+    args: { projectPath: "<project-root>", pathInProject: "<relative-path>", oldText: "<exact-existing-text>", newText: "<replacement-text>" }
+    guard: "Edits a file while preserving IDE undo. Prefer for targeted manual-reviewable edits."
+
+  "rider-official:create_new_file":
+    call: read
+    risk: file-write
+    args: { projectPath: "<project-root>", pathInProject: "<relative-path>", text: "<full-file-content>", overwrite: false }
+    guard: "Creates a file; set overwrite=true only when replacing a file is intentional."
+
+  "rider-official:delete_file":
+    call: read
+    risk: destructive
+    args: { projectPath: "<project-root>", filePath: "<relative-path>" }
+    guard: "Deletes a file or empty directory; require explicit user confirmation."
+
+  "rider-official:list_directory_tree":
+    call: read
+    args: { projectPath: "<project-root>", directoryPath: "<relative-directory>", maxDepth: 3 }
+
+  "rider-official:find_files_by_glob":
+    call: read
+    args: { projectPath: "<project-root>", globPattern: "<glob>", fileCountLimit: 100 }
+
+  "rider-official:find_files_by_name_keyword":
+    call: read
+    args: { projectPath: "<project-root>", nameKeyword: "<filename-keyword>", fileCountLimit: 50 }
+
+  "rider-official:search_text":
+    call: read
+    args: { projectPath: "<project-root>", q: "<literal-text>", paths: ["<relative-directory>/**"], limit: 50 }
+
+  "rider-official:search_regex":
+    call: read
+    args: { projectPath: "<project-root>", q: "<regex>", paths: ["<relative-directory>/**"], limit: 50 }
+
+  "rider-official:search_symbol":
+    call: read
+    args: { projectPath: "<project-root>", q: "<symbol-query>", limit: 50 }
+
+  "rider-official:search_in_files_by_text":
+    call: read
+    args: { projectPath: "<project-root>", searchText: "<literal-text>", maxUsageCount: 50 }
+
+  "rider-official:search_in_files_by_regex":
+    call: read
+    args: { projectPath: "<project-root>", regexPattern: "<regex>", maxUsageCount: 50 }
+
+  "rider-official:get_file_problems":
+    call: read
+    args: { projectPath: "<project-root>", filePath: "<relative-path>", severity: "error" }
+
+  "rider-official:run_inspections":
+    call: read
+    args: { projectPath: "<project-root>", path: "<relative-path>", severity: "warning" }
+
+  "rider-official:get_symbol_info":
+    call: read
+    args: { projectPath: "<project-root>", filePath: "<relative-path>", line: 1, column: 1 }
+
+  "rider-official:reformat_file":
+    call: read
+    risk: file-write
+    args: { projectPath: "<project-root>", path: "<relative-path>" }
+    guard: "Can rewrite formatting; use only after user-requested edits or explicit formatting request."
+
+  "rider-official:build_solution":
+    call: read
+    risk: executes-code
+    args: { projectPath: "<project-root>", rebuild: false }
+    guard: "Builds the solution and may create build artifacts."
+
+  "rider-official:get_build_output":
+    call: read
+    args: { projectPath: "<project-root>" }
+
+  "rider-official:list_run_configurations":
+    call: read
+    args: { projectPath: "<project-root>" }
+
+  "rider-official:get_run_configurations":
+    call: read
+    args: { projectPath: "<project-root>" }
+
+  "rider-official:get_run_configuration_xml":
+    call: read
+    args: { projectPath: "<project-root>", configurationName: "<configuration-name>" }
+
+  "rider-official:create_run_configuration_from_xml":
+    call: read
+    risk: ide-write
+    args: { projectPath: "<project-root>", name: "<configuration-name>", xml: "<run-configuration-xml>" }
+    guard: "Creates an IDE run configuration; require explicit user request."
+
+  "rider-official:execute_run_configuration":
+    call: read
+    risk: executes-code
+    args: { projectPath: "<project-root>", configurationName: "<configuration-name>", waitForExit: true, timeout: 600000 }
+    guard: "Executes code from an IDE run configuration."
+
+  "rider-official:start_run_configuration":
+    call: read
+    risk: executes-code
+    args: { projectPath: "<project-root>", configurationName: "<configuration-name>", waitForExit: false }
+    guard: "Starts a process; stop it separately if needed."
+
+  "rider-official:debug_run_configuration":
+    call: read
+    risk: executes-code-debug
+    args: { projectPath: "<project-root>", configurationName: "<configuration-name>", waitForExit: false, timeoutMs: 600000 }
+    guard: "Starts a debug session; use only when debugging is requested and inspect/stop it deliberately."
+
+  "rider-official:modify_run_configuration":
+    call: read
+    risk: ide-write
+    args: { projectPath: "<project-root>", configurationName: "<configuration-name>", programArguments: "<program-arguments>" }
+    guard: "Persists run configuration changes; provide only fields intentionally changed."
+
+  "rider-official:get_console_output":
+    call: read
+    args: { projectPath: "<project-root>" }
+
+  "rider-official:get_terminal_output":
+    call: read
+    args: { projectPath: "<project-root>" }
+
+  "rider-official:get_test_results":
+    call: read
+    args: { projectPath: "<project-root>" }
+
+  "rider-official:execute_ide_action":
+    call: read
+    risk: ide-write
+    args: { projectPath: "<project-root>", search: "<action-search>" }
+    guard: "Use search first. Supplying actionId/configurable can change IDE state."
+
+  "rider-official:get_vcs_changes":
+    call: read
+    args: { projectPath: "<project-root>", includeDiff: false }
+
+  "rider-official:get_vcs_branch":
+    call: read
+    args: { projectPath: "<project-root>" }
+
+  "rider-official:get_vcs_log":
+    call: read
+    args: { projectPath: "<project-root>", maxCount: 20 }
+
+  "rider-official:get_vcs_blame":
+    call: read
+    args: { projectPath: "<project-root>", filePath: "<relative-path>", startLine: 1, endLine: 200 }
+
+  "rider-official:vcs_show_commit":
+    call: read
+    args: { projectPath: "<project-root>", hash: "<commit-or-ref>", statOnly: false }
+
+  "rider-official:get_vcs_diff_between_branches":
+    call: read
+    args: { projectPath: "<project-root>", ref1: "<base-ref>", ref2: "<target-ref>", statOnly: false }
+
+  "rider-official:vcs_stage_files":
+    call: read
+    risk: vcs-write
+    args: { projectPath: "<project-root>", action: "stage", files: ["<relative-path>"] }
+    guard: "Stages or unstages git files; require explicit current user request."
+
+  "rider-official:vcs_commit":
+    call: read
+    risk: vcs-write
+    args: { projectPath: "<project-root>", message: "<commit-message>" }
+    guard: "Creates a git commit; require explicit current user request."
+
+  "rider-official:vcs_push":
+    call: read
+    risk: remote-write
+    args: { projectPath: "<project-root>" }
+    guard: "Pushes commits to remote; require explicit current user request."
+
+  # JetBrains WebStorm / frontend-oriented project tools
+  "webstorm-official:get_file_text_by_path":
+    call: read
+    args: { projectPath: "<project-root>", pathInProject: "<relative-path>", truncateMode: "NONE" }
+
+  "webstorm-official:read_file":
+    call: read
+    args: { projectPath: "<project-root>", file_path: "<relative-path>", mode: "slice", start_line: 1, max_lines: 200 }
+
+  "webstorm-official:replace_text_in_file":
+    call: read
+    risk: file-write
+    args: { projectPath: "<project-root>", pathInProject: "<relative-path>", oldText: "<exact-existing-text>", newText: "<replacement-text>", replaceAll: false }
+    guard: "Edits and saves a file. Read wrapper mirrors current call_with; use only for user-requested edits."
+
+  "webstorm-official:replace_text_undoable":
+    call: read
+    risk: file-write
+    args: { projectPath: "<project-root>", pathInProject: "<relative-path>", oldText: "<exact-existing-text>", newText: "<replacement-text>" }
+    guard: "Edits a file while preserving IDE undo. Prefer for targeted manual-reviewable edits."
+
+  "webstorm-official:create_new_file":
+    call: read
+    risk: file-write
+    args: { projectPath: "<project-root>", pathInProject: "<relative-path>", text: "<full-file-content>", overwrite: false }
+    guard: "Creates a file; set overwrite=true only when replacing a file is intentional."
+
+  "webstorm-official:list_directory_tree":
+    call: read
+    args: { projectPath: "<project-root>", directoryPath: "<relative-directory>", maxDepth: 3 }
+
+  "webstorm-official:search_file":
+    call: read
+    args: { projectPath: "<project-root>", q: "<glob>", limit: 100 }
+
+  "webstorm-official:search_text":
+    call: read
+    args: { projectPath: "<project-root>", q: "<literal-text>", paths: ["<relative-directory>/**"], limit: 50 }
+
+  "webstorm-official:search_regex":
+    call: read
+    args: { projectPath: "<project-root>", q: "<regex>", paths: ["<relative-directory>/**"], limit: 50 }
+
+  "webstorm-official:search_in_files_by_text":
+    call: read
+    args: { projectPath: "<project-root>", searchText: "<literal-text>", maxUsageCount: 50 }
+
+  "webstorm-official:search_in_files_by_regex":
+    call: read
+    args: { projectPath: "<project-root>", regexPattern: "<regex>", maxUsageCount: 50 }
+
+  "webstorm-official:get_file_problems":
+    call: read
+    args: { projectPath: "<project-root>", filePath: "<relative-path>", severity: "error" }
+
+  "webstorm-official:run_inspections":
+    call: read
+    args: { projectPath: "<project-root>", path: "<relative-path>", severity: "warning" }
+
+  "webstorm-official:list_run_configurations":
+    call: read
+    args: { projectPath: "<project-root>" }
+
+  "webstorm-official:get_run_configurations":
+    call: read
+    args: { projectPath: "<project-root>" }
+
+  "webstorm-official:get_run_configuration_xml":
+    call: read
+    args: { projectPath: "<project-root>", configurationName: "<configuration-name>" }
+
+  "webstorm-official:create_run_configuration_from_xml":
+    call: read
+    risk: ide-write
+    args: { projectPath: "<project-root>", name: "<configuration-name>", xml: "<run-configuration-xml>" }
+    guard: "Creates an IDE run configuration; require explicit user request."
+
+  "webstorm-official:execute_run_configuration":
+    call: read
+    risk: executes-code
+    args: { projectPath: "<project-root>", configurationName: "<configuration-name>", waitForExit: true, timeout: 600000 }
+    guard: "Executes code from an IDE run configuration."
+
+  "webstorm-official:start_run_configuration":
+    call: read
+    risk: executes-code
+    args: { projectPath: "<project-root>", configurationName: "<configuration-name>", waitForExit: false }
+    guard: "Starts a process; stop it separately if needed."
+
+  "webstorm-official:debug_run_configuration":
+    call: read
+    risk: executes-code-debug
+    args: { projectPath: "<project-root>", configurationName: "<configuration-name>", waitForExit: false, timeoutMs: 600000 }
+    guard: "Starts a debug session; use only when debugging is requested and inspect/stop it deliberately."
+
+  "webstorm-official:modify_run_configuration":
+    call: read
+    risk: ide-write
+    args: { projectPath: "<project-root>", configurationName: "<configuration-name>", programArguments: "<program-arguments>" }
+    guard: "Persists run configuration changes; provide only fields intentionally changed."
+
+  "webstorm-official:get_console_output":
+    call: read
+    args: { projectPath: "<project-root>" }
+
+  "webstorm-official:get_terminal_output":
+    call: read
+    args: { projectPath: "<project-root>" }
+
+  "webstorm-official:execute_terminal_command":
+    call: read
+    risk: terminal-command
+    args: { projectPath: "<project-root>", command: "<command>", executeInShell: true, timeout: 600000, maxLinesCount: 2000, reuseExistingTerminalWindow: true, truncateMode: "END" }
+    guard: "Executes an arbitrary shell command in the IDE terminal and may mutate files, network, or processes; require an explicit user request and avoid destructive commands without confirmation."
+
+  "webstorm-official:get_test_results":
+    call: read
+    args: { projectPath: "<project-root>" }
+
+  "webstorm-official:get_ide_snapshot":
+    call: read
+    args: { projectPath: "<project-root>" }
+
+  "webstorm-official:get_repositories":
+    call: read
+    args: { projectPath: "<project-root>" }
+
+  "webstorm-official:get_vcs_changes":
+    call: read
+    args: { projectPath: "<project-root>", includeDiff: false }
+
+  "webstorm-official:get_vcs_branch":
+    call: read
+    args: { projectPath: "<project-root>" }
+
+  "webstorm-official:get_vcs_log":
+    call: read
+    args: { projectPath: "<project-root>", maxCount: 20 }
+
+  "webstorm-official:get_vcs_blame":
+    call: read
+    args: { projectPath: "<project-root>", filePath: "<relative-path>", startLine: 1, endLine: 200 }
+
+  "webstorm-official:vcs_show_commit":
+    call: read
+    args: { projectPath: "<project-root>", hash: "<commit-or-ref>", statOnly: false }
+
+  "webstorm-official:get_vcs_diff_between_branches":
+    call: read
+    args: { projectPath: "<project-root>", ref1: "<base-ref>", ref2: "<target-ref>", statOnly: false }
+
+  "webstorm-official:vcs_stage_files":
+    call: read
+    risk: vcs-write
+    args: { projectPath: "<project-root>", action: "stage", files: ["<relative-path>"] }
+    guard: "Stages or unstages git files; require explicit current user request."
+
+  "webstorm-official:vcs_commit":
+    call: read
+    risk: vcs-write
+    args: { projectPath: "<project-root>", message: "<commit-message>" }
+    guard: "Creates a git commit; require explicit current user request."
+
+  "webstorm-official:vcs_push":
+    call: read
+    risk: remote-write
+    args: { projectPath: "<project-root>" }
+    guard: "Pushes commits to remote; require explicit current user request."
+
+  # Purpose-built .NET test tools
+  "dotnet-test-mcp:list_test_projects":
+    call: read
+    args: { workingDirectory: "<project-root>" }
+
+  "dotnet-test-mcp:list_tests_summary":
+    call: read
+    args: { workingDirectory: "<project-root>", includeTests: false }
+
+  "dotnet-test-mcp:run_single_test":
+    call: read
+    risk: executes-code
+    args: { testName: "<fully-qualified-test-name>", projectPath: "<project-root>/<test-project.csproj>", workingDirectory: "<project-root>", includeStackTrace: false }
+
+  "dotnet-test-mcp:run_all_tests_in_class":
+    call: read
+    risk: executes-code
+    args: { className: "<fully-qualified-test-class-name>", projectPath: "<project-root>/<test-project.csproj>", workingDirectory: "<project-root>", includeStackTrace: false }
+
+  "dotnet-test-mcp:run_all_tests_for_project":
+    call: read
+    risk: executes-code
+    args: { projectPath: "<project-root>/<test-project.csproj>", workingDirectory: "<project-root>", includeStackTrace: false }
+
+  "dotnet-test-mcp:run_all_tests":
+    call: read
+    risk: executes-code
+    args: { workingDirectory: "<project-root>", includeStackTrace: false }
+
+  # .NET SDK MCP tools
+  "dotnet-mcp:dotnet_project":
+    call: destructive
+    risk: mixed-dotnet-project-action
+    args: { action: "Build", project: "<project-root>/<project.csproj>", workingDirectory: "<project-root>" }
+    guard: "Actions include create, run, clean, stop, format, and project mutation. Choose action deliberately."
+
+  "dotnet-mcp:dotnet_ef":
+    call: destructive
+    risk: database-or-migration-write
+    args: { action: "MigrationsList", project: "<project-root>/<project.csproj>", workingDirectory: "<project-root>" }
+    guard: "DatabaseUpdate/DatabaseDrop and migration writes require explicit confirmation."
+
+  # Frontend package scripts exposed as MCP tools
+  "webstorm-bun-scripts:typecheck":
+    call: read
+    risk: executes-code
+    args: { args: [] }
+
+  "webstorm-bun-scripts:lint":
+    call: read
+    risk: executes-code
+    args: { args: [] }
+
+  "webstorm-bun-scripts:unit-test":
+    call: read
+    risk: executes-code
+    args: { args: [] }
+
+  "webstorm-bun-scripts:cypress_ci":
+    call: read
+    risk: executes-code-browser
+    args: { args: [] }
+    guard: "Starts app/test processes and browser automation."
+
+  # Git MCP server
+  "git-mcp-server:git_status":
+    call: read
+    args: { path: "<project-root>", includeUntracked: true }
+
+  "git-mcp-server:git_diff":
+    call: read
+    args: { path: "<project-root>", paths: ["<relative-path>"], staged: false, includeUntracked: false }
+
+  "git-mcp-server:git_commit":
+    call: write
+    risk: vcs-write
+    args: { path: "<project-root>", message: "<commit-message>" }
+    guard: "Creates a git commit; require explicit current user request."
+
+  # GitHub MCP tools
+  "github:get_file_contents":
+    call: read
+    args: { owner: "<owner>", repo: "<repo>", path: "<repo-path>" }
+
+  "github:pull_request_read":
+    call: read
+    args: { method: "get", owner: "<owner>", repo: "<repo>", pullNumber: 1 }
+
+  "github:issue_read":
+    call: read
+    args: { method: "get", owner: "<owner>", repo: "<repo>", issue_number: 1 }
+
+  "github:search_code":
+    call: read
+    args: { query: "<github-code-search-query>" }
+
+  "github:search_issues":
+    call: read
+    args: { query: "<github-issue-search-query>" }
+
+  "github:get_commit":
+    call: read
+    args: { owner: "<owner>", repo: "<repo>", sha: "<sha-or-ref>", include_diff: true }
+
+  "github:get_release_by_tag":
+    call: read
+    args: { owner: "<owner>", repo: "<repo>", tag: "<tag>" }
+
+  "github:actions_list":
+    call: read
+    args: { method: "list_workflows", owner: "<owner>", repo: "<repo>" }
+
+  "github:actions_get":
+    call: read
+    args: { method: "get_workflow_run", owner: "<owner>", repo: "<repo>", resource_id: "<workflow-run-or-job-id>" }
+
+  "github:get_job_logs":
+    call: read
+    args: { owner: "<owner>", repo: "<repo>", job_id: 1, tail_lines: 500 }
+
+  "github:create_or_update_file":
+    call: read
+    risk: remote-write
+    args: { owner: "<owner>", repo: "<repo>", branch: "<branch>", path: "<repo-path>", content: "<file-content>", message: "<commit-message>", sha: "<existing-file-sha-if-updating>" }
+    guard: "Remote GitHub write and commit. SHA is required when updating an existing file."
+
+  "github:push_files":
+    call: read
+    risk: remote-write
+    args: { owner: "<owner>", repo: "<repo>", branch: "<branch>", files: [{ path: "<repo-path>", content: "<file-content>" }], message: "<commit-message>" }
+    guard: "Writes and commits multiple remote files; require explicit current user request."
+
+  "github:actions_run_trigger":
+    call: destructive
+    risk: remote-ci-write
+    args: { method: "run_workflow", owner: "<owner>", repo: "<repo>", workflow_id: "<workflow-id-or-file>", ref: "<branch-or-tag>" }
+    guard: "Can trigger, rerun, cancel, or delete workflow logs."
+
+  # Chrome DevTools MCP tools
+  "chrome-devtools:list_console_messages":
+    call: read
+    args: {}
+
+  "chrome-devtools:list_network_requests":
+    call: read
+    args: {}
+
+  "chrome-devtools:get_network_request":
+    call: write
+    risk: browser-read-write-wrapper
+    args: { reqid: 1 }
+    guard: "Write wrapper mirrors current call_with even though the common use is inspection."
+
+  "chrome-devtools:wait_for":
+    call: read
+    args: { text: ["<text>"] }
+
+  "chrome-devtools:take_snapshot":
+    call: write
+    risk: browser-inspection-write-wrapper
+    args: { verbose: false }
+
+  "chrome-devtools:take_screenshot":
+    call: write
+    risk: file-write
+    args: { filePath: "<relative-path>", format: "png", fullPage: false }
+
+  "chrome-devtools:evaluate_script":
+    call: write
+    risk: browser-js
+    args: { function: "() => document.title" }
+    guard: "Page JavaScript can mutate state. Keep functions inspect-only unless the user requested mutation."
+
+  "chrome-devtools:navigate_page":
+    call: write
+    risk: browser-navigation
+    args: { type: "url", url: "<url>" }
+
+  "chrome-devtools:new_page":
+    call: write
+    risk: browser-navigation
+    args: { url: "<url>" }
+
+  # Playwright MCP tools
+  "playwright:browser_snapshot":
+    call: read
+    args: {}
+
+  "playwright:browser_console_messages":
+    call: read
+    args: { level: "info" }
+
+  "playwright:browser_network_requests":
+    call: read
+    args: { static: false }
+
+  "playwright:browser_network_request":
+    call: read
+    args: { index: 1 }
+
+  "playwright:browser_take_screenshot":
+    call: read
+    risk: file-write
+    args: { type: "png", fullPage: false }
+
+  "playwright:browser_wait_for":
+    call: read
+    args: { text: "<text>" }
+
+  "playwright:browser_navigate":
+    call: destructive
+    risk: browser-navigation
+    args: { url: "<url>" }
+
+  "playwright:browser_tabs":
+    call: destructive
+    risk: browser-tabs
+    args: { action: "list" }
+    guard: "Can create/select/close tabs. Require explicit action for close."
+
+  "playwright:browser_evaluate":
+    call: destructive
+    risk: browser-js
+    args: { function: "() => document.title" }
+    guard: "JavaScript can mutate the page. Keep functions inspect-only unless mutation is requested."
+
+  "playwright:browser_run_code_unsafe":
+    call: destructive
+    risk: rce-equivalent
+    args: { code: "async (page) => await page.title()" }
+    guard: "RCE-equivalent unsafe tool; require high-risk confirmation."
+
+  # Documentation MCP tools
+  "context7:resolve-library-id":
+    call: read
+    args: { libraryName: "<library-name>", query: "<why-docs-are-needed>" }
+
+  "context7:query-docs":
+    call: read
+    args: { libraryId: "/org/project", query: "<documentation-query>" }
