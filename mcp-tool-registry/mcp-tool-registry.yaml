@@ -22,6 +22,8 @@ contract:
     - "Do not run skillshare commands during normal registry lookup, validation, or maintenance."
     - "Validate this skill through MCP schema freshness and file diagnostics for this folder, not target sync."
     - "Never guess a server:tool name that is not listed here or returned by discovery."
+    - "For Reaparr frontend paths under src/AppHost/ClientApp, prefer cached webstorm-official:* tools before retrieve_tools."
+    - "For Reaparr backend paths under src excluding src/AppHost/ClientApp, prefer cached rider-official:* tools before retrieve_tools."
 
 placeholders:
   projectRoot: "<project-root>"
