@@ -656,3 +656,62 @@ tools:
   "context7:query-docs":
     call: read
     args: { libraryId: "/org/project", query: "<documentation-query>" }
+
+  # Codebase Knowledge Graph (codebase-memory-mcp)
+  # ALWAYS prefer these graph tools over grep/glob/file-search for code discovery.
+  # Priority: search_graph → trace_path → get_code_snippet → query_graph → get_architecture
+  "codebase-memory-mcp:search_graph":
+    call: read
+    args: { query: "<search-terms>", project: "<project-root>" }
+    verified: { source: "retrieve_tools", notes: "Required: project. BM25 full-text search with camelCase splitting. Supports name_pattern, semantic_query, label filters, pagination via offset/limit." }
+
+  "codebase-memory-mcp:trace_path":
+    call: read
+    args: { function_name: "<function-name>", project: "<project-root>", mode: "calls" }
+    verified: { source: "retrieve_tools", notes: "Required: function_name, project. Modes: calls, data_flow, cross_service. Direction: inbound/outbound/both. Default depth=3." }
+
+  "codebase-memory-mcp:get_code_snippet":
+    call: read
+    args: { qualified_name: "<fully-qualified-function-name>", project: "<project-root>" }
+    verified: { source: "retrieve_tools", notes: "Required: qualified_name, project. Pass the exact qualified_name from search_graph results." }
+
+  "codebase-memory-mcp:query_graph":
+    call: read
+    args: { query: "<cypher-query>", project: "<project-root>" }
+    verified: { source: "retrieve_tools", notes: "Required: query, project. Cypher queries for complex multi-hop patterns. 100k row hard ceiling." }
+
+  "codebase-memory-mcp:get_architecture":
+    call: read
+    args: { project: "<project-root>" }
+    verified: { source: "retrieve_tools", notes: "Required: project. Returns packages, services, dependencies, Leiden community clusters." }
+
+  "codebase-memory-mcp:search_code":
+    call: read
+    args: { pattern: "<search-pattern>", project: "<project-root>", mode: "compact" }
+    verified: { source: "retrieve_tools", notes: "Required: pattern, project. Graph-augmented grep — deduplicates into containing functions, ranks by structural importance. Modes: compact/full/files." }
+
+  "codebase-memory-mcp:get_graph_schema":
+    call: read
+    args: { project: "<project-root>" }
+    verified: { source: "retrieve_tools", notes: "Required: project. Returns node labels and edge types in the knowledge graph." }
+
+  "codebase-memory-mcp:index_repository":
+    call: read
+    risk: repository-index
+    args: { repo_path: "<project-root>", mode: "fast" }
+    guard: "Indexes the repository into the knowledge graph. 'full' mode runs similarity/semantic edges."
+    verified: { source: "retrieve_tools", notes: "Required: repo_path. Modes: full/moderate/fast/cross-repo-intelligence." }
+
+  "codebase-memory-mcp:ingest_traces":
+    call: read
+    risk: repository-index
+    args: { traces: [], project: "<project-root>" }
+    guard: "Ingests runtime traces into the knowledge graph."
+    verified: { source: "retrieve_tools", notes: "Required: traces, project." }
+
+  "codebase-memory-mcp:manage_adr":
+    call: read
+    risk: file-write
+    args: { project: "<project-root>", mode: "get" }
+    guard: "Can create or update Architecture Decision Records; prefer read-only modes (get/sections)."
+    verified: { source: "retrieve_tools", notes: "Required: project. Modes: get/update/sections." }

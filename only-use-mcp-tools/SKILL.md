@@ -35,8 +35,34 @@ When any row is MCP-backed in the active environment, use MCP and do not use loc
 | Documentation lookup | library docs, API references, official docs MCPs | native web fetch/search when an MCP docs server exists |
 | Remote services | GitHub, cloud APIs, issue trackers, CI/CD | direct API calls, CLIs, local credentials outside MCP |
 | Databases | schema inspect, query, migrations, DB admin | direct DB CLIs or drivers outside MCP |
+| Code discovery/knowledge graph | function/class search, call tracing, code snippets, architecture overview | `grep`, `rg`, `glob`, local file-search for code structure |
 
 If no MCP server exists for a capability, say so. If an MCP server exists but fails, run the Failure Protocol. Do not quietly switch to local tools.
+
+## Codebase Knowledge Graph Priority
+
+When `codebase-memory-mcp` tools are available, they MUST be used as the PRIMARY code discovery mechanism. Graph-based tools are orders of magnitude faster than raw grep/glob and provide structural context that text search cannot.
+
+### Priority Order for Code Discovery
+
+1. `codebase-memory-mcp:search_graph` — find functions, classes, routes, variables by pattern
+2. `codebase-memory-mcp:trace_path` — trace who calls a function or what it calls
+3. `codebase-memory-mcp:get_code_snippet` — read specific function/class source code
+4. `codebase-memory-mcp:query_graph` — run Cypher queries for complex patterns
+5. `codebase-memory-mcp:get_architecture` — high-level project summary
+
+### When to Fall Back to grep/glob
+
+Only use grep/glob/file-search when:
+- Searching for string literals, error messages, config values
+- Searching non-code files (Dockerfiles, shell scripts, configs)
+- Graph tools return insufficient results
+
+### Usage Examples
+
+- Find a handler: `codebase-memory-mcp:search_graph(query="OrderHandler", project="<project-root>")`
+- Who calls it: `codebase-memory-mcp:trace_path(function_name="OrderHandler", direction="inbound", project="<project-root>")`
+- Read source: `codebase-memory-mcp:get_code_snippet(qualified_name="pkg/orders.OrderHandler", project="<project-root>")`
 
 ## First 30 Seconds
 
@@ -76,6 +102,7 @@ If no MCP server exists for a capability, say so. If an MCP server exists but fa
 | "I'll call the GitHub CLI/API directly." | Use GitHub MCP tools. |
 | "I'll use a browser/script outside MCP." | Use browser MCP tools. |
 | "MCP failed, local is faster." | Run Failure Protocol and stop. |
+| "I'll just `grep`/`rg` for the function." | Use codebase-memory-mcp graph tools (search_graph, trace_path) for code discovery. |
 
 These are policy violations even for read-only actions when an MCP equivalent exists.
 

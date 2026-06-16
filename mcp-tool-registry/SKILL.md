@@ -113,6 +113,7 @@ Use this table to choose likely registry keys, then use YAML for exact args and 
 | Browser inspection/automation through Chrome DevTools | `chrome-devtools:*` |
 | Browser inspection/automation through Playwright | `playwright:*` |
 | Library documentation lookup | `context7:*` |
+| Codebase knowledge graph / code discovery | `codebase-memory-mcp:*` |
 
 ## Golden Discovery Queries
 
@@ -131,6 +132,9 @@ Use these when retrieval needs help finding stable tools:
 - `github pull request issue actions file contents search code`
 - `chrome-devtools console network snapshot screenshot navigate evaluate`
 - `playwright browser snapshot console network navigate evaluate`
+- `codebase-memory-mcp search graph trace path code snippet architecture`
+- `codebase-memory-mcp search_graph query name_pattern label project`
+- `codebase-memory-mcp trace_path function_name direction mode calls data_flow`
 
 ## Placeholder Rules
 
