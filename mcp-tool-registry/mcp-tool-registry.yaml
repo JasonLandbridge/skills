@@ -1,12 +1,12 @@
 # Minimal MCP tool registry
 # Exact MCP server:tool names and first-call argument templates verified against mcpproxy schemas.
-# This file is a cache for /only-use-mcp-tools, not a replacement for discovery or safety rules.
+# This file is a cache for /prefer-mcp-for-nonnative-tools, not a replacement for discovery or safety rules.
 
 version: 1
 kind: mcp-tool-registry
 
 contract:
-  companionSkill: "only-use-mcp-tools"
+  companionSkill: "prefer-mcp-for-nonnative-tools"
   callMeaning: "Cached mcpproxy wrapper suffix from verified retrieve_tools call_with; not a semantic safety label."
   wrapperMap:
     read: "mcpproxy_call_tool_read"

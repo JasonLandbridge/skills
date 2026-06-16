@@ -7,15 +7,15 @@ description: Use when an MCP-only workflow needs exact cached server:tool names,
 
 ## Purpose
 
-This skill is the exact-tool cache for MCP-only agents. It provides verified `server:tool` names, cached mcpproxy wrapper routes, minimal argument templates, and guard notes for stable MCP tools.
+This skill is the exact-tool cache for MCP-augmented agents. It provides verified `server:tool` names, cached mcpproxy wrapper routes, minimal argument templates, and guard notes for stable MCP tools.
 
-Use it with `only-use-mcp-tools`. The policy skill decides **that MCP must be used** and how to fail closed. This registry helps agents avoid guessing once MCP use is required.
+Use it with `prefer-mcp-for-nonnative-tools`. The policy skill decides **when MCP should be used** vs native OpenCode tools and how to handle MCP failures. This registry helps agents avoid guessing when MCP use is required.
 
-## Relationship to `only-use-mcp-tools`
+## Relationship to `prefer-mcp-for-nonnative-tools`
 
-- `only-use-mcp-tools` MUST load this skill immediately.
-- `only-use-mcp-tools` is the policy source of truth: discovery, health checks, quarantine checks, intent metadata, user-confirmation gates, and no local fallback.
-- This registry is the lookup source of truth for known stable exact tools and first-call argument shapes.
+- `prefer-mcp-for-nonnative-tools` should load this skill before first MCP-backed action.
+- `prefer-mcp-for-nonnative-tools` is the policy source of truth: when MCP vs native tools should be used, discovery, health checks, quarantine checks, intent metadata, user-confirmation gates, and no fallback to disabled tools.
+- This registry is the lookup source of truth for known stable exact MCP tools and first-call argument shapes.
 - Fresh `mcpproxy_retrieve_tools` output wins over this registry for current wrapper/schema details.
 - Successful calls in the current session may be cached, but never invent a tool name or argument from patterns.
 
@@ -48,11 +48,11 @@ Each entry uses this shape:
 | `write` | `mcpproxy_call_tool_write` |
 | `destructive` | `mcpproxy_call_tool_destructive` |
 
-**Important:** `call` is not a safety label. Some tools that edit files, stage commits, execute code, or mutate browser/remote state may currently route through `call: read`. Always obey `risk`, `guard`, and `only-use-mcp-tools` safety gates.
+**Important:** `call` is not a safety label. Some tools that edit files, stage commits, execute code, or mutate browser/remote state may currently route through `call: read`. Always obey `risk`, `guard`, and `prefer-mcp-for-nonnative-tools` safety gates.
 
 ## Fast Lookup Workflow
 
-1. Start from the policy/routing decision in `only-use-mcp-tools`.
+1. Start from the policy/routing decision in `prefer-mcp-for-nonnative-tools`.
 2. Open `mcp-tool-registry.yaml`.
 3. Find the exact `server:tool` key for the capability.
 4. Copy the `args` template and replace every `<placeholder>`.
@@ -83,7 +83,7 @@ Required sequence before declaring a known capability blocked:
 3. Check server health with `mcpproxy_upstream_servers`.
 4. Check quarantine/tool state with `mcpproxy_quarantine_security`.
 5. Attempt one direct call to the exact registry entry only if the server is healthy and the action is read-only or already allowed by current user intent and the registry guard.
-6. If it fails, report the raw tool error through the `only-use-mcp-tools` Failure Protocol.
+6. If it fails, report the raw tool error through the `prefer-mcp-for-nonnative-tools` Failure Protocol.
 
 Never use a registry tie-breaker to perform destructive, remote-write, VCS-write, browser-mutation, or code-execution actions unless the user explicitly requested that action in the current task.
 
@@ -176,14 +176,14 @@ After editing this skill or YAML:
 4. Confirm every tool has `call` and `args`.
 5. Confirm risky tools include `risk` and `guard`.
 6. Confirm direct-call retry rules block unapproved mutation/execution.
-7. Confirm `only-use-mcp-tools` still requires this skill to be loaded.
+7. Confirm `prefer-mcp-for-nonnative-tools` still references this registry.
 8. Do not stage or commit unless the current user explicitly asked.
 
 ## Common Mistakes
 
 | Mistake | Fix |
 | --- | --- |
-| Treating this registry as permission to skip `only-use-mcp-tools` | Load and obey `only-use-mcp-tools`; this is only exact-tool data. |
+| Treating this registry as permission to skip `prefer-mcp-for-nonnative-tools` | Load and obey `prefer-mcp-for-nonnative-tools`; this is only exact-tool data. |
 | Assuming `call: read` means harmless | Check `risk`/`guard`; wrapper route is not safety classification. |
 | Treating args as exhaustive schemas | Templates are minimum viable first calls; fresh schema wins. |
 | Copying args without replacing placeholders | Replace every `<...>` value or discover/ask for it. |
