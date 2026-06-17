@@ -106,6 +106,7 @@ Use this table to choose likely registry keys, then use YAML for exact args and 
 | --- | --- |
 | Backend/.NET IDE file/search/edit/VCS/run/test state | `rider-official:*` |
 | Frontend/Vue/TS/JS/CSS IDE file/search/edit/VCS/run/test state | `webstorm-official:*` |
+| PHP IDE file/search/edit/VCS/run/test state | `phpstorm-official:*` |
 | .NET test execution outside IDE test UI | `dotnet-test-mcp:*` |
 | .NET SDK/EF project operations | `dotnet-mcp:*` |
 | Git status/diff/commit via dedicated server | `git-mcp-server:*` |

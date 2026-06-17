@@ -13,6 +13,8 @@ Native OpenCode tools (when permitted by the user's permission config): `read`, 
 
 **Disabled native tools (never use):** native `grep` and native `glob` remain disabled. Use codebase-memory MCP, IDE search MCP, LSP symbols/references, `read`/`list`, or approved MCP search tools instead.
 
+**Available IDE MCP servers:** `rider-official:*`, `webstorm-official:*`, `phpstorm-official:*`. Check the registry for the exact tool available on each.
+
 ## Mandatory Companion Skill
 
 `mcp-tool-registry` is the recommended exact-tool cache for MCP-backed actions. It provides verified `server:tool` names, mcpproxy wrappers, argument templates, and per-tool guard notes.
@@ -40,9 +42,9 @@ Classify each capability before choosing tools:
 | Capability | Preferred MCP server | Notes |
 | --- | --- | --- |
 | Structural code discovery | `codebase-memory-mcp:*` | Functions, classes, routes, call chains, architecture. Preferred over any search for structural questions. |
-| IDE diagnostics/refactors | `rider-official:*` / `webstorm-official:*` | IDE-backed inspections, reformats, symbol info, run configurations |
-| IDE file operations | `rider-official:*` / `webstorm-official:*` | Create/edit/delete with IDE undo, formatting, and project indexing |
-| IDE search within projects | `rider-official:*` / `webstorm-official:*` | IDE-indexed text/regex search, structural search, symbol search |
+| IDE diagnostics/refactors | `rider-official:*` / `webstorm-official:*` / `phpstorm-official:*` | IDE-backed inspections, reformats, symbol info, run configurations |
+| IDE file operations | `rider-official:*` / `webstorm-official:*` / `phpstorm-official:*` | Create/edit/delete with IDE undo, formatting, and project indexing |
+| IDE search within projects | `rider-official:*` / `webstorm-official:*` / `phpstorm-official:*` | IDE-indexed text/regex search, structural search, symbol search |
 | Browser automation | `chrome-devtools:*` / `playwright:*` | Navigate, snapshot, console/network, screenshots, form interactions |
 | Documentation lookup | `context7:*` | Library docs, API references |
 | Source code search (non-structural) | `codebase-memory-mcp:search_code` | Graph-augmented grep for string literals, error messages, config values — ranked by structural importance |
