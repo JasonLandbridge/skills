@@ -1,15 +1,15 @@
 ---
 name: prefer-mcp-for-nonnative-tools
-description: Use native OpenCode tools for native capabilities when permitted. Use MCP tools for capabilities not covered by native OpenCode tools, or when MCP provides materially better context, safety, or integration. Native grep and glob remain disabled.
+description: Use native tools for native capabilities when permitted. Use MCP tools for capabilities not covered by native tools, or when MCP provides materially better context, safety, or integration. Native grep and glob remain disabled.
 ---
 
 # MCP-Augmented Tool Discipline
 
 ## Core Principle
 
-Use native OpenCode tools for native capabilities when permitted. Use MCP tools for capabilities not covered by native OpenCode tools, or when MCP provides materially better context, safety, or integration.
+Use native tools for native capabilities when permitted. Use MCP tools for capabilities not covered by native tools, or when MCP provides materially better context, safety, or integration.
 
-Native OpenCode tools (when permitted by the user's permission config): `read`, `list`, `edit`, `lsp`, `question`, `todowrite`, `skill`, `bash` (when allowed).
+Native tools (when permitted by the user's permission config): `read`, `list`, `edit`, `lsp`, `question`, `todowrite`, `skill`, `bash` (when allowed).
 
 **Disabled native tools (never use):** native `grep` and native `glob` remain disabled. Use codebase-memory MCP, IDE search MCP, LSP symbols/references, `read`/`list`, or approved MCP search tools instead.
 
@@ -20,14 +20,14 @@ Native OpenCode tools (when permitted by the user's permission config): `read`, 
 `mcp-tool-registry` is the recommended exact-tool cache for MCP-backed actions. It provides verified `server:tool` names, mcpproxy wrappers, argument templates, and per-tool guard notes.
 
 - Load `mcp-tool-registry` before the first MCP-backed action when exact MCP tool names or wrappers are needed.
-- Do not require it for tasks that only use native OpenCode tools.
+- Do not require it for tasks that only use native tools.
 - If the runtime cannot auto-load dependencies from frontmatter, manually load `mcp-tool-registry` before the first MCP call.
 
 ## Tool Selection Policy
 
 Classify each capability before choosing tools:
 
-### Native-First (use native OpenCode tools when permitted)
+### Native-First (use native tools when permitted)
 
 | Capability | Native tool | When to use MCP instead |
 | --- | --- | --- |
@@ -92,7 +92,7 @@ When `codebase-memory-mcp` tools are available, they are the recommended first c
 
 ## First 30 Seconds
 
-1. Determine whether the task can be done with permitted native OpenCode tools.
+1. Determine whether the task can be done with permitted native tools.
 2. If yes and the task does not need grep/glob, use native tools.
 3. If the task needs a non-native capability, or native grep/glob would normally be the obvious tool:
    - For structural code questions: use `codebase-memory-mcp` graph tools.
@@ -155,11 +155,11 @@ Use the cache to avoid repeated discovery. Do not use it to bypass safety gates 
 
 ```dot
 digraph native_first_flow {
-  "Need tool capability?" -> "Covered by permitted native OpenCode tool?";
-  "Covered by permitted native OpenCode tool?" -> "Is it grep or glob?" [label="yes"];
+  "Need tool capability?" -> "Covered by permitted native tool?";
+  "Covered by permitted native tool?" -> "Is it grep or glob?" [label="yes"];
   "Is it grep or glob?" -> "Use native tool" [label="no"];
   "Is it grep or glob?" -> "Use MCP or LSP/read/list" [label="yes (BLOCKED)"];
-  "Covered by permitted native OpenCode tool?" -> "MCP server available?" [label="no"];
+  "Covered by permitted native tool?" -> "MCP server available?" [label="no"];
   "MCP server available?" -> "Use mcpproxy with exact discoverd/registry tool" [label="yes"];
   "MCP server available?" -> "Report capability gap" [label="no"];
   "Use mcpproxy with exact discoverd/registry tool" -> "Discovery clear?";

@@ -9,7 +9,7 @@ description: Use when an MCP-only workflow needs exact cached server:tool names,
 
 This skill is the exact-tool cache for MCP-augmented agents. It provides verified `server:tool` names, cached mcpproxy wrapper routes, minimal argument templates, and guard notes for stable MCP tools.
 
-Use it with `prefer-mcp-for-nonnative-tools`. The policy skill decides **when MCP should be used** vs native OpenCode tools and how to handle MCP failures. This registry helps agents avoid guessing when MCP use is required.
+Use it with `prefer-mcp-for-nonnative-tools`. The policy skill decides **when MCP should be used** vs native tools and how to handle MCP failures. This registry helps agents avoid guessing when MCP use is required.
 
 ## Relationship to `prefer-mcp-for-nonnative-tools`
 
