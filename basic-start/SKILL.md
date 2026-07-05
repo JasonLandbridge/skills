@@ -3,6 +3,10 @@ name: basic-start
 description: Use certain tools before starting to work.
 ---
 
+## Wiki Knowledge Capture
+
+For any **non-programming task** — research, configuration, system administration, homelab management, learning sessions — after completing the task, load the `wiki-knowledge-manager` skill and store lessons, tips, notes, or findings to the wiki. The wiki is the primary knowledge base for non-dev work.
+
 ## Codebase Knowledge Graph Guidance
 
 When `codebase-memory-mcp` tools are available, they are the recommended first choice for structural code discovery. They provide context that raw text search cannot match and are extremely fast.
